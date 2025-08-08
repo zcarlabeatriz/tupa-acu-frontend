@@ -1,0 +1,39 @@
+/* Customização do Bootstrap para SISREC */
+:root {
+  --primary-color: #0d6efd;
+  --secondary-color: #6c757d;
+  --success-color: #198754;
+  --danger-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: #0dcaf0;
+  --light-color: #f8f9fa;
+  --dark-color: #212529;
+  
+  --seduc-primary: #1e3a8a;
+  --seduc-secondary: #3b82f6;
+  --seduc-accent: #10b981;
+}
+
+.btn-seduc-primary {
+  background-color: var(--seduc-primary);
+  border-color: var(--seduc-primary);
+  color: white;
+}
+
+.btn-seduc-primary:hover {
+  background-color: var(--seduc-secondary);
+  border-color: var(--seduc-secondary);
+}
+
+.navbar-seduc {
+  background-color: var(--seduc-primary) !important;
+}
+
+.sidebar-seduc {
+  background-color: var(--seduc-secondary);
+  min-height: 100vh;
+}
+
+.card-seduc {
+  border-left: 4px solid var(--seduc-accent);
+}

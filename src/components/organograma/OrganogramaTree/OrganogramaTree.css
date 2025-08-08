@@ -1,0 +1,153 @@
+.organograma-tree {
+  width: 100%;
+  overflow-x: auto;
+  padding: 2rem;
+}
+
+.organograma-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  min-width: fit-content;
+}
+
+.organograma-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.setor-card {
+  min-width: 280px;
+  max-width: 320px;
+  border: none;
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.setor-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+.setor-nome {
+  color: #1e3a8a;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 0.75rem;
+}
+
+.setor-info {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.75rem;
+}
+
+.organograma-children {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  position: relative;
+}
+
+.organograma-children::before {
+  content: '';
+  position: absolute;
+  top: -2rem;
+  left: 50%;
+  width: 2px;
+  height: 2rem;
+  background: #d1d5db;
+  transform: translateX(-50%);
+}
+
+.organograma-children .organograma-node::before {
+  content: '';
+  position: absolute;
+  top: -2rem;
+  left: 50%;
+  width: 2px;
+  height: 2rem;
+  background: #d1d5db;
+  transform: translateX(-50%);
+}
+
+.organograma-children .organograma-node::after {
+  content: '';
+  position: absolute;
+  top: -2rem;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #d1d5db;
+}
+
+.organograma-children .organograma-node:first-child::after {
+  left: 50%;
+}
+
+.organograma-children .organograma-node:last-child::after {
+  right: 50%;
+}
+
+.organograma-children .organograma-node:only-child::after {
+  display: none;
+}
+
+/* Responsivo */
+@media (max-width: 991.98px) {
+  .organograma-tree {
+    padding: 1rem;
+  }
+  
+  .setor-card {
+    min-width: 240px;
+    max-width: 280px;
+  }
+  
+  .organograma-children {
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .organograma-tree {
+    padding: 0.5rem;
+  }
+  
+  .setor-card {
+    min-width: 200px;
+    max-width: 240px;
+  }
+  
+  .organograma-children {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .organograma-children::before,
+  .organograma-children .organograma-node::before,
+  .organograma-children .organograma-node::after {
+    display: none;
+  }
+}
+
+/* Animações */
+.setor-card {
+  animation: fadeInScale 0.6s ease-out;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

@@ -1,0 +1,37 @@
+.app-footer {
+  background-color: white;
+  border-top: 1px solid #e5e7eb;
+  padding: 1rem 0;
+  margin-top: auto;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.footer-text {
+  text-align: left;
+}
+
+.footer-links {
+  text-align: right;
+}
+
+.copyright {
+  font-weight: 500;
+}
+
+.system-info {
+  font-weight: 600;
+  color: #1e3a8a;
+}
+
+@media (max-width: 767.98px) {
+  .footer-text,
+  .footer-links {
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  .footer-links {
+    margin-bottom: 0;
+  }
+}

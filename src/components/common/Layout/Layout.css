@@ -1,0 +1,243 @@
+.layout-container {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Conteúdo principal */
+.main-content {
+  transition: margin-left 0.3s ease;
+  min-height: calc(100vh - 70px);
+  margin-top: 70px;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content.sidebar-expanded {
+  margin-left: 280px;
+}
+
+.main-content.sidebar-collapsed {
+  margin-left: 70px;
+}
+
+.content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-content {
+  flex: 1;
+  padding: 2rem;
+  min-height: calc(100vh - 140px);
+}
+
+/* Mobile responsivo */
+@media (max-width: 1199.98px) {
+  .main-content.sidebar-expanded,
+  .main-content.sidebar-collapsed {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .page-content {
+    padding: 1rem;
+  }
+}
+
+/* Overlay mobile */
+.mobile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1030;
+  display: none;
+}
+
+@media (max-width: 1199.98px) {
+  .mobile-overlay {
+    display: block;
+  }
+}
+
+/* Customização dos toasts */
+.custom-toast {
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.custom-toast-body {
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Toasts customizados por tipo */
+.Toastify__toast--success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.Toastify__toast--error {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.Toastify__toast--warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.Toastify__toast--info {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+/* Animações de página */
+.page-content {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Estados de carregamento */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+/* Breadcrumb styling */
+.page-breadcrumb {
+  margin-bottom: 1.5rem;
+}
+
+.page-breadcrumb .breadcrumb {
+  background: none;
+  padding: 0;
+  margin: 0;
+}
+
+.page-breadcrumb .breadcrumb-item {
+  font-size: 0.9rem;
+}
+
+.page-breadcrumb .breadcrumb-item a {
+  color: #6b7280;
+  text-decoration: none;
+}
+
+.page-breadcrumb .breadcrumb-item a:hover {
+  color: #1e3a8a;
+}
+
+.page-breadcrumb .breadcrumb-item.active {
+  color: #374151;
+  font-weight: 500;
+}
+
+/* Page header styling */
+.page-header {
+  display: flex;
+  justify-content: between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.page-header h1 {
+  color: #1e3a8a;
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.page-header .page-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+@media (max-width: 767.98px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .page-header .page-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* Card container */
+.cards-container {
+  display: grid;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.cards-container.grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.cards-container.grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.cards-container.grid-4 {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+/* Utility classes */
+.text-seduc-primary {
+  color: #1e3a8a !important;
+}
+
+.text-seduc-secondary {
+  color: #3b82f6 !important;
+}
+
+.bg-seduc-primary {
+  background-color: #1e3a8a !important;
+}
+
+.bg-seduc-secondary {
+  background-color: #3b82f6 !important;
+}
+
+.border-seduc-primary {
+  border-color: #1e3a8a !important;
+}
+
+/* Smooth transitions */
+* {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Focus states for accessibility */
+button:focus,
+.btn:focus,
+.form-control:focus,
+.form-select:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}

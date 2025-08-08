@@ -1,0 +1,109 @@
+.pessoas-page {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* User Avatar */
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.1rem;
+}
+
+/* Table styling */
+.table th {
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.table td {
+  vertical-align: middle;
+  padding: 1rem 0.75rem;
+}
+
+.table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Cards */
+.card {
+  border: none;
+  border-radius: 1rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+.card-header {
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 1rem 1rem 0 0 !important;
+  padding: 1rem 1.25rem;
+}
+
+/* Modal */
+.modal-header {
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Form styling */
+.form-label {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.form-control {
+  border-color: #d1d5db;
+  padding: 0.75rem 1rem;
+}
+
+.form-control:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
+
+/* Badges */
+.badge {
+  font-size: 0.75rem;
+  padding: 0.375rem 0.75rem;
+}
+
+/* Dropdown */
+.dropdown-toggle::after {
+  display: none;
+}
+
+/* Responsivo */
+@media (max-width: 767.98px) {
+  .table-responsive {
+    font-size: 0.875rem;
+  }
+  
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+  
+  .dropdown-menu {
+    font-size: 0.875rem;
+  }
+}
+
+/* Animações */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
