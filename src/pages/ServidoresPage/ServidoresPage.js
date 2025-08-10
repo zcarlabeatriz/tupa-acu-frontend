@@ -3,12 +3,12 @@ import { Container, Row, Col, Card, Table, Button, Form, InputGroup, Modal, Badg
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { toast } from 'react-toastify';
-// import { servidoresService } from '../../services/api/servidoresService';
+import { servidoresService } from '../../services/api/servidoresService';
 import { servidorSchema } from '../../services/utils/validators';
 import { formatPhone, formatCPF, formatDate } from '../../services/utils/formatters';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
-import { ROLES } from '../../services/utils/constants';
+import { ROLES, SITUACAO_SERVIDOR } from '../../services/utils/constants';
 import Loading from '../../components/common/Loading/Loading';
 import ConfirmModal from '../../components/common/ConfirmModal/ConfirmModal';
 import './ServidoresPage.css';
@@ -17,6 +17,7 @@ const ServidoresPage = () => {
   const [servidores, setServidores] = useState([]);
   const [setores, setSetores] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingServidor, setEditingServidor] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,7 +29,6 @@ const ServidoresPage = () => {
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [servidorToResetPassword, setServidorToResetPassword] = useState(null);
   
-  const { user } = useAuth();
   const { canManageServidores, isAdmin } = usePermissions();
 
   const {
@@ -49,11 +49,10 @@ const ServidoresPage = () => {
       cargo: '',
       setorId: '',
       papel: ROLES.SERVIDOR,
-      observacoes: ''
+      situacao: SITUACAO_SERVIDOR.ATIVO
     }
   });
 
-  // Formatação automática dos campos
   const celularValue = watch('celular');
   const cpfValue = watch('cpf');
   
@@ -82,93 +81,14 @@ const ServidoresPage = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Simulação de dados - substitua pelas chamadas reais da API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockSetores = [
-        { id: 1, nome: 'Gabinete' },
-        { id: 2, nome: 'Recursos Humanos' },
-        { id: 3, nome: 'Financeiro' },
-        { id: 4, nome: 'Tecnologia da Informação' },
-        { id: 5, nome: 'Planejamento' },
-        { id: 6, nome: 'Jurídico' }
-      ];
-
-      const mockServidores = [
-        {
-          id: 1,
-          nome: 'Carlos Alberto Souza',
-          email: 'carlos.souza@seduc.ma.gov.br',
-          cpf: '123.456.789-01',
-          celular: '(98) 98765-4321',
-          matricula: 'MAT001',
-          cargo: 'Diretor de Tecnologia',
-          setorId: 4,
-          setor: { nome: 'Tecnologia da Informação' },
-          papel: ROLES.ADMIN,
-          status: 'ativo',
-          dataCadastro: '2024-01-15T10:30:00Z',
-          ultimoLogin: '2025-08-07T20:15:00Z',
-          totalVisitasRecebidas: 15,
-          observacoes: 'Servidor com acesso administrativo total'
-        },
-        {
-          id: 2,
-          nome: 'Maria Fernanda Lima',
-          email: 'maria.lima@seduc.ma.gov.br',
-          cpf: '987.654.321-09',
-          celular: '(98) 99876-5432',
-          matricula: 'MAT002',
-          cargo: 'Recepcionista Senior',
-          setorId: 1,
-          setor: { nome: 'Gabinete' },
-          papel: ROLES.RECEPCIONISTA,
-          status: 'ativo',
-          dataCadastro: '2024-02-20T14:00:00Z',
-          ultimoLogin: '2025-08-07T18:45:00Z',
-          totalVisitasRecebidas: 8,
-          observacoes: 'Responsável pela recepção principal'
-        },
-        {
-          id: 3,
-          nome: 'João Pedro Santos',
-          email: 'joao.santos@seduc.ma.gov.br',
-          cpf: '456.789.123-45',
-          celular: '(98) 97654-3210',
-          matricula: 'MAT003',
-          cargo: 'Analista de RH',
-          setorId: 2,
-          setor: { nome: 'Recursos Humanos' },
-          papel: ROLES.SERVIDOR,
-          status: 'ativo',
-          dataCadastro: '2024-03-10T09:00:00Z',
-          ultimoLogin: '2025-08-06T16:30:00Z',
-          totalVisitasRecebidas: 25,
-          observacoes: ''
-        },
-        {
-          id: 4,
-          nome: 'Ana Paula Costa',
-          email: 'ana.costa@seduc.ma.gov.br',
-          cpf: '789.123.456-78',
-          celular: '(98) 96543-2109',
-          matricula: 'MAT004',
-          cargo: 'Contador',
-          setorId: 3,
-          setor: { nome: 'Financeiro' },
-          papel: ROLES.SERVIDOR,
-          status: 'inativo',
-          dataCadastro: '2024-04-05T11:15:00Z',
-          ultimoLogin: '2025-07-15T10:20:00Z',
-          totalVisitasRecebidas: 3,
-          observacoes: 'Licença médica até 30/08/2025'
-        }
-      ];
-
-      setSetores(mockSetores);
-      setServidores(mockServidores);
+      const [fetchedServidores, fetchedSetores] = await Promise.all([
+        servidoresService.getTodosServidores(),
+        servidoresService.getTodosSetores()
+      ]);
+      setServidores(fetchedServidores);
+      setSetores(fetchedSetores);
     } catch (error) {
-      toast.error('Erro ao carregar dados');
+      toast.error('Erro ao carregar dados: ' + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -177,15 +97,17 @@ const ServidoresPage = () => {
   const handleOpenModal = (servidor = null) => {
     setEditingServidor(servidor);
     if (servidor) {
-      setValue('nome', servidor.nome);
-      setValue('email', servidor.email);
-      setValue('cpf', servidor.cpf);
-      setValue('celular', servidor.celular);
-      setValue('matricula', servidor.matricula);
-      setValue('cargo', servidor.cargo);
-      setValue('setorId', servidor.setorId);
-      setValue('papel', servidor.papel);
-      setValue('observacoes', servidor.observacoes || '');
+      reset({
+        nome: servidor.nome,
+        email: servidor.email,
+        cpf: servidor.cpf,
+        celular: servidor.celular,
+        matricula: servidor.matricula,
+        cargo: servidor.cargo,
+        setorId: servidor.setor.id,
+        papel: servidor.papel,
+        situacao: servidor.situacao,
+      });
     } else {
       reset();
     }
@@ -199,24 +121,32 @@ const ServidoresPage = () => {
   };
 
   const onSubmit = async (data) => {
+    setIsSubmitting(true);
     try {
+      let result;
       const servidorData = {
         ...data,
         cpf: data.cpf.replace(/\D/g, ''),
-        celular: data.celular.replace(/\D/g, '')
+        celular: data.celular.replace(/\D/g, ''),
       };
 
       if (editingServidor) {
-        // Atualizar servidor existente
-        toast.success('Servidor atualizado com sucesso!');
+        result = await servidoresService.atualizarServidor(editingServidor.id, servidorData);
       } else {
-        // Criar novo servidor
-        toast.success('Servidor cadastrado com sucesso!');
+        result = await servidoresService.criarServidor(servidorData);
       }
-      handleCloseModal();
-      loadData();
+
+      if (result.success) {
+        toast.success(editingServidor ? 'Servidor atualizado com sucesso!' : 'Servidor cadastrado com sucesso!');
+        handleCloseModal();
+        loadData();
+      } else {
+        toast.error(result.error);
+      }
     } catch (error) {
       toast.error('Erro ao salvar servidor');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -226,23 +156,40 @@ const ServidoresPage = () => {
   };
 
   const confirmDelete = async () => {
+    setIsSubmitting(true);
     try {
-      // Chamada para API de exclusão
-      toast.success('Servidor excluído com sucesso!');
-      setShowDeleteModal(false);
-      setServidorToDelete(null);
-      loadData();
+      const result = await servidoresService.deletarServidor(servidorToDelete.id);
+      if (result.success) {
+        toast.success('Servidor excluído com sucesso!');
+        setShowDeleteModal(false);
+        setServidorToDelete(null);
+        loadData();
+      } else {
+        toast.error(result.error);
+      }
     } catch (error) {
       toast.error('Erro ao excluir servidor');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const toggleStatus = async (servidor) => {
     try {
-      const newStatus = servidor.status === 'ativo' ? 'inativo' : 'ativo';
-      // Chamada para API de atualização de status
-      toast.success(`Servidor ${newStatus === 'ativo' ? 'ativado' : 'desativado'} com sucesso!`);
-      loadData();
+      const newSituacao = servidor.situacao === SITUACAO_SERVIDOR.ATIVO ? SITUACAO_SERVIDOR.INATIVO : SITUACAO_SERVIDOR.ATIVO;
+      const updateData = {
+        ...servidor,
+        situacao: newSituacao,
+        setorId: servidor.setor.id,
+      };
+      const result = await servidoresService.atualizarServidor(servidor.id, updateData);
+      
+      if (result.success) {
+        toast.success(`Servidor ${newSituacao === SITUACAO_SERVIDOR.ATIVO ? 'ativado' : 'desativado'} com sucesso!`);
+        loadData();
+      } else {
+        toast.error(result.error);
+      }
     } catch (error) {
       toast.error('Erro ao alterar status');
     }
@@ -255,7 +202,7 @@ const ServidoresPage = () => {
 
   const confirmResetPassword = async () => {
     try {
-      // Chamada para API de reset de senha
+      // TODO: Adicionar um endpoint de reset de senha na API
       toast.success('Nova senha enviada por email!');
       setShowResetPasswordModal(false);
       setServidorToResetPassword(null);
@@ -264,22 +211,25 @@ const ServidoresPage = () => {
     }
   };
 
-  // Filtrar servidores
   const filteredServidores = servidores.filter(servidor => {
     const matchesSearch = servidor.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         servidor.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         servidor.matricula.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         servidor.cpf.includes(searchTerm);
-    const matchesStatus = filterStatus === 'all' || servidor.status === filterStatus;
-    const matchesSetor = filterSetor === 'all' || servidor.setorId.toString() === filterSetor;
+                          servidor.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          servidor.matricula.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          servidor.cpf.includes(searchTerm);
+    const matchesStatus = filterStatus === 'all' || servidor.situacao === filterStatus;
+    const matchesSetor = filterSetor === 'all' || (servidor.setor && servidor.setor.id.toString() === filterSetor);
     const matchesCargo = filterCargo === 'all' || servidor.papel === filterCargo;
     return matchesSearch && matchesStatus && matchesSetor && matchesCargo;
   });
 
-  const getStatusBadge = (status) => {
-    return status === 'ativo' ? 
-      <Badge bg="success">Ativo</Badge> : 
-      <Badge bg="secondary">Inativo</Badge>;
+  const getStatusBadge = (situacao) => {
+    switch (situacao) {
+      case SITUACAO_SERVIDOR.ATIVO: return <Badge bg="success">Ativo</Badge>;
+      case SITUACAO_SERVIDOR.INATIVO: return <Badge bg="secondary">Inativo</Badge>;
+      case SITUACAO_SERVIDOR.FERIAS: return <Badge bg="warning">Férias</Badge>;
+      case SITUACAO_SERVIDOR.LICENCA: return <Badge bg="info">Licença</Badge>;
+      default: return <Badge bg="light">Desconhecido</Badge>;
+    }
   };
 
   const getPapelBadge = (papel) => {
@@ -290,9 +240,9 @@ const ServidoresPage = () => {
     };
     
     const labels = {
-      [ROLES.ADMIN]: 'Administrador',
-      [ROLES.RECEPCIONISTA]: 'Recepcionista',
-      [ROLES.SERVIDOR]: 'Servidor'
+      [ROLES.ADMIN]: ROLES.ADMIN,
+      [ROLES.RECEPCIONISTA]: ROLES.RECEPCIONISTA,
+      [ROLES.SERVIDOR]: ROLES.SERVIDOR
     };
 
     return <Badge bg={variants[papel] || 'secondary'}>{labels[papel] || papel}</Badge>;
@@ -357,7 +307,7 @@ const ServidoresPage = () => {
                 <div className="stat-content">
                   <div className="stat-icon"><i className="fas fa-check-circle"></i></div>
                   <div className="stat-details">
-                    <h3 className="stat-number">{servidores.filter(s => s.status === 'ativo').length}</h3>
+                    <h3 className="stat-number">{servidores.filter(s => s.situacao === SITUACAO_SERVIDOR.ATIVO).length}</h3>
                     <p className="stat-label">Ativos</p>
                   </div>
                 </div>
@@ -420,8 +370,10 @@ const ServidoresPage = () => {
                     onChange={e => setFilterStatus(e.target.value)}
                   >
                     <option value="all">Todos</option>
-                    <option value="ativo">Ativos</option>
-                    <option value="inativo">Inativos</option>
+                    <option value={SITUACAO_SERVIDOR.ATIVO}>Ativos</option>
+                    <option value={SITUACAO_SERVIDOR.INATIVO}>Inativos</option>
+                    <option value={SITUACAO_SERVIDOR.FERIAS}>Férias</option>
+                    <option value={SITUACAO_SERVIDOR.LICENCA}>Licença</option>
                   </Form.Select>
                 </Form.Group>
               </Col>
@@ -482,7 +434,7 @@ const ServidoresPage = () => {
                     <th>Cargo/Setor</th>
                     <th>Papel</th>
                     <th>Status</th>
-                    <th>Visitas</th>
+                    {/* <th>Visitas</th> */}
                     <th>Último Login</th>
                     <th width="120">Ações</th>
                   </tr>
@@ -508,11 +460,7 @@ const ServidoresPage = () => {
                         <div className="text-muted small">{servidor.setor.nome}</div>
                       </td>
                       <td>{getPapelBadge(servidor.papel)}</td>
-                      <td>{getStatusBadge(servidor.status)}</td>
-                      <td>
-                        <span className="fw-bold">{servidor.totalVisitasRecebidas}</span>
-                        <div className="text-muted small">recebidas</div>
-                      </td>
+                      <td>{getStatusBadge(servidor.situacao)}</td>
                       <td>
                         <div className="text-muted small">
                           {servidor.ultimoLogin ? formatDate(servidor.ultimoLogin) : 'Nunca'}
@@ -529,8 +477,8 @@ const ServidoresPage = () => {
                               Editar
                             </Dropdown.Item>
                             <Dropdown.Item onClick={() => toggleStatus(servidor)}>
-                              <i className={`fas fa-${servidor.status === 'ativo' ? 'ban' : 'check'} me-2`}></i>
-                              {servidor.status === 'ativo' ? 'Desativar' : 'Ativar'}
+                              <i className={`fas fa-${servidor.situacao === SITUACAO_SERVIDOR.ATIVO ? 'ban' : 'check'} me-2`}></i>
+                              {servidor.situacao === SITUACAO_SERVIDOR.ATIVO ? 'Desativar' : 'Ativar'}
                             </Dropdown.Item>
                             {isAdmin() && (
                               <>
@@ -598,6 +546,7 @@ const ServidoresPage = () => {
                       placeholder="email@seduc.ma.gov.br"
                       {...register('email')}
                       isInvalid={!!errors.email}
+                      readOnly={!!editingServidor}
                     />
                     <Form.Control.Feedback type="invalid">
                       {errors.email?.message}
@@ -614,6 +563,7 @@ const ServidoresPage = () => {
                       placeholder="000.000.000-00"
                       {...register('cpf')}
                       isInvalid={!!errors.cpf}
+                      readOnly={!!editingServidor}
                     />
                     <Form.Control.Feedback type="invalid">
                       {errors.cpf?.message}
@@ -644,6 +594,7 @@ const ServidoresPage = () => {
                       placeholder="MAT001"
                       {...register('matricula')}
                       isInvalid={!!errors.matricula}
+                      readOnly={!!editingServidor}
                     />
                     <Form.Control.Feedback type="invalid">
                       {errors.matricula?.message}

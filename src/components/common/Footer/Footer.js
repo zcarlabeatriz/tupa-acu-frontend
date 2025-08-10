@@ -19,7 +19,7 @@ const Footer = () => {
           <Col md={6}>
             <div className="footer-links">
               <span className="system-info">
-                SISREC v1.0.0 | Sistema de Recepção
+                TUPA AÇU v1.0.0 | Sistema de Recepção
               </span>
             </div>
           </Col>

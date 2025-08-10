@@ -12,6 +12,7 @@ const api = axios.create({
 // Interceptor para adicionar token de autenticação
 api.interceptors.request.use(
   (config) => {
+    console.log('🌐 Axios Request:', config.method?.toUpperCase(), config.url);
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -19,6 +20,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    console.error('🔥 Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -26,15 +28,20 @@ api.interceptors.request.use(
 // Interceptor para tratar respostas
 api.interceptors.response.use(
   (response) => {
+   
     return response;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expirado ou inválido
+   
+    
+    // ✅ IMPORTANTE: Só redirecionar se NÃO for a rota de login
+    if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login')) {
+      
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
+    
     return Promise.reject(error);
   }
 );

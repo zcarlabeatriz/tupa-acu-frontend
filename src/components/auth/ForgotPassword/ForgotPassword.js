@@ -71,19 +71,12 @@ const ForgotPassword = () => {
                   className="logo-img"
                   onError={e => e.target.style.display = 'none'}
                 />
-                <h1 className="logo-text">SISREC</h1>
+                <h1 className="logo-text">TUPÃ-AÇU</h1>
               </div>
               <h2 className="info-title">
                 Recuperação de senha
               </h2>
-              <p className="info-description">
-                Esqueceu sua senha? Não se preocupe! Informe seu email cadastrado e enviaremos um link para redefinir sua senha.
-              </p>
-              <ul className="forgot-benefits">
-                <li><i className="fas fa-envelope"></i> Email seguro e rápido</li>
-                <li><i className="fas fa-lock"></i> Proteção dos seus dados</li>
-                <li><i className="fas fa-user"></i> Suporte ao usuário</li>
-              </ul>
+              
             </div>
           </Col>
           {/* Formulário à direita */}

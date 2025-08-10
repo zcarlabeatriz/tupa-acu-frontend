@@ -1,76 +1,146 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, InputGroup, Spinner } from 'react-bootstrap';
-import { useForm } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { registerSchema } from '../../../services/utils/validators';
 import { authService } from '../../../services/api/authService';
-import { formatPhone } from '../../../services/utils/formatters';
-import Loading from '../../common/Loading/Loading';
+// import { handleCPFInput, handlePhoneInput, removeFormatting } from '../../../services/utils/formatters';
 import './Register.css';
 
 const Register = () => {
+  const [formData, setFormData] = useState({
+    nome: '',
+    email: '',
+    senha: '',
+    confirmarSenha: '',
+    cpf: '',
+    celular: ''
+  });
   const [isLoading, setIsLoading] = useState(false);
+  const [localError, setLocalError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setFocus,
-    watch,
-    setValue,
-    reset
-  } = useForm({
-    resolver: yupResolver(registerSchema),
-    defaultValues: {
-      nome: '',
-      email: '',
-      senha: '',
-      confirmarSenha: '',
-      cpf: '',
-      celular: ''
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Limpar erros quando usuário começar a digitar
+    if (localError) setLocalError('');
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
     }
-  });
 
-  useEffect(() => {
-    setFocus('nome');
-  }, [setFocus]);
-
-  // Formatação automática do celular
-  const celularValue = watch('celular');
-  useEffect(() => {
-    if (celularValue) {
-      const formatted = formatPhone(celularValue);
-      if (formatted !== celularValue) {
-        setValue('celular', formatted);
+    // Tratamento especial para CPF e telefone
+    if (name === 'cpf') {
+      const numbersOnly = value.replace(/\D/g, '');
+      if (numbersOnly.length <= 11) {
+        setFormData(prev => ({
+          ...prev,
+          [name]: numbersOnly // Armazenar apenas números
+        }));
       }
+    } else if (name === 'celular') {
+      const numbersOnly = value.replace(/\D/g, '');
+      if (numbersOnly.length <= 11) {
+        setFormData(prev => ({
+          ...prev,
+          [name]: numbersOnly // Armazenar apenas números
+        }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
     }
-  }, [celularValue, setValue]);
+  };
 
-  const onSubmit = async (data) => {
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.nome.trim()) errors.nome = 'Nome é obrigatório';
+    else if (formData.nome.length < 2) errors.nome = 'Nome deve ter pelo menos 2 caracteres';
+    
+    if (!formData.email.trim()) errors.email = 'Email é obrigatório';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.email = 'Email inválido';
+    
+    if (!formData.cpf) errors.cpf = 'CPF é obrigatório';
+    else if (formData.cpf.length !== 11) errors.cpf = 'CPF deve ter 11 dígitos';
+    
+    if (!formData.celular) errors.celular = 'Celular é obrigatório';
+    else if (formData.celular.length < 10) errors.celular = 'Celular deve ter pelo menos 10 dígitos';
+    
+    if (!formData.senha) errors.senha = 'Senha é obrigatória';
+    else if (formData.senha.length < 6) errors.senha = 'Senha deve ter pelo menos 6 caracteres';
+    
+    if (!formData.confirmarSenha) errors.confirmarSenha = 'Confirmação de senha é obrigatória';
+    else if (formData.senha !== formData.confirmarSenha) errors.confirmarSenha = 'Senhas não coincidem';
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (isLoading) return;
+
+    if (!validateForm()) {
+      setLocalError('Por favor, corrija os erros nos campos');
+      return;
+    }
+
     setIsLoading(true);
+    setLocalError('');
+
     try {
+      
+
       const result = await authService.register({
-        nome: data.nome,
-        email: data.email,
-        senha: data.senha,
-        cpf: data.cpf,
-        celular: data.celular ? data.celular.replace(/\D/g, '') : '',
+        nome: formData.nome,
+        email: formData.email,
+        senha: formData.senha,
+        cpf: formData.cpf, // Já está sem formatação
+        celular: formData.celular, // Já está sem formatação
       });
 
       if (result.success) {
         toast.success('Cadastro realizado com sucesso! Faça login para acessar o sistema.');
-        navigate('/login', { state: { message: 'Cadastro realizado com sucesso! Verifique seu email para ativar a conta.' } });
+        navigate('/login', { 
+          state: { 
+            message: 'Cadastro realizado com sucesso! Você pode fazer login agora.' 
+          } 
+        });
       } else {
-        toast.error(result.error);
+        const errorMsg = result.error || 'Erro ao realizar cadastro';
+        setLocalError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (err) {
-      toast.error('Erro inesperado. Tente novamente.');
+      
+      const errorMsg = 'Erro inesperado. Tente novamente.';
+      setLocalError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Formatação visual para exibição
+  const getDisplayValue = (name, value) => {
+    if (name === 'cpf' && value) {
+      return value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    }
+    if (name === 'celular' && value) {
+      if (value.length <= 10) {
+        return value.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+      }
+      return value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+    }
+    return value;
   };
 
   return (
@@ -81,29 +151,14 @@ const Register = () => {
           <Col lg={6} className="register-info-side d-none d-lg-flex">
             <div className="register-info-content">
               <div className="logo-container mb-4">
-                <img 
-                  src="/logo-seduc.png" 
-                  alt="SEDUC/MA" 
-                  className="logo-img"
-                  onError={e => e.target.style.display = 'none'}
-                />
-                <h1 className="logo-text">SISREC</h1>
+                <h1 className="logo-text">TUPÃ-AÇU</h1>
               </div>
               <h2 className="info-title">
                 Cadastro de novo usuário
               </h2>
-              <p className="info-description">
-                Preencha seus dados para criar uma conta e ter acesso ao sistema.
-                Após registrar, sua conta poderá precisar ser aprovada por um administrador.
-              </p>
-              <ul className="register-benefits">
-                <li><i className="fas fa-check-circle"></i> Acesso ao agendamento de visitas</li>
-                <li><i className="fas fa-check-circle"></i> Controle das suas visitas</li>
-                <li><i className="fas fa-check-circle"></i> Notificações por email</li>
-                <li><i className="fas fa-check-circle"></i> Cadastro seguro</li>
-              </ul>
             </div>
           </Col>
+
           {/* Formulário à direita */}
           <Col lg={6} className="register-form-side">
             <div className="register-form-container">
@@ -115,7 +170,15 @@ const Register = () => {
                       Preencha os dados abaixo para registrar-se
                     </p>
                   </div>
-                  <Form onSubmit={handleSubmit(onSubmit)} noValidate autoComplete="off">
+
+                  {localError && (
+                    <Alert variant="danger" className="mb-4" dismissible onClose={() => setLocalError('')}>
+                      <i className="fas fa-exclamation-triangle me-2"></i>
+                      {localError}
+                    </Alert>
+                  )}
+
+                  <Form onSubmit={handleSubmit} noValidate>
                     <Form.Group className="mb-3">
                       <Form.Label>Nome Completo</Form.Label>
                       <InputGroup>
@@ -124,15 +187,17 @@ const Register = () => {
                         </InputGroup.Text>
                         <Form.Control
                           type="text"
+                          name="nome"
                           placeholder="Seu nome completo"
-                          {...register('nome')}
-                          isInvalid={!!errors.nome}
-                          autoFocus
+                          value={formData.nome}
+                          onChange={handleInputChange}
+                          isInvalid={!!fieldErrors.nome}
+                          disabled={isLoading}
                         />
                       </InputGroup>
-                      {errors.nome && (
+                      {fieldErrors.nome && (
                         <Form.Control.Feedback type="invalid">
-                          {errors.nome.message}
+                          {fieldErrors.nome}
                         </Form.Control.Feedback>
                       )}
                     </Form.Group>
@@ -145,15 +210,17 @@ const Register = () => {
                         </InputGroup.Text>
                         <Form.Control
                           type="email"
-                          placeholder="Seu email"
-                          {...register('email')}
-                          isInvalid={!!errors.email}
-                          autoComplete="email"
+                          name="email"
+                          placeholder="seu@email.com"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          isInvalid={!!fieldErrors.email}
+                          disabled={isLoading}
                         />
                       </InputGroup>
-                      {errors.email && (
+                      {fieldErrors.email && (
                         <Form.Control.Feedback type="invalid">
-                          {errors.email.message}
+                          {fieldErrors.email}
                         </Form.Control.Feedback>
                       )}
                     </Form.Group>
@@ -166,18 +233,23 @@ const Register = () => {
                         </InputGroup.Text>
                         <Form.Control
                           type="text"
-                          placeholder="Apenas números"
-                          {...register('cpf')}
-                          isInvalid={!!errors.cpf}
-                          maxLength={11}
-                          autoComplete="off"
+                          name="cpf"
+                          placeholder="000.000.000-00"
+                          value={getDisplayValue('cpf', formData.cpf)}
+                          onChange={handleInputChange}
+                          isInvalid={!!fieldErrors.cpf}
+                          disabled={isLoading}
+                          maxLength={14} // Com formatação
                         />
                       </InputGroup>
-                      {errors.cpf && (
+                      {fieldErrors.cpf && (
                         <Form.Control.Feedback type="invalid">
-                          {errors.cpf.message}
+                          {fieldErrors.cpf}
                         </Form.Control.Feedback>
                       )}
+                      <Form.Text className="text-muted">
+                        Apenas números
+                      </Form.Text>
                     </Form.Group>
                     
                     <Form.Group className="mb-3">
@@ -188,17 +260,23 @@ const Register = () => {
                         </InputGroup.Text>
                         <Form.Control
                           type="text"
+                          name="celular"
                           placeholder="(99) 99999-9999"
-                          {...register('celular')}
-                          isInvalid={!!errors.celular}
-                          autoComplete="tel"
+                          value={getDisplayValue('celular', formData.celular)}
+                          onChange={handleInputChange}
+                          isInvalid={!!fieldErrors.celular}
+                          disabled={isLoading}
+                          maxLength={15} // Com formatação
                         />
                       </InputGroup>
-                      {errors.celular && (
+                      {fieldErrors.celular && (
                         <Form.Control.Feedback type="invalid">
-                          {errors.celular.message}
+                          {fieldErrors.celular}
                         </Form.Control.Feedback>
                       )}
+                      <Form.Text className="text-muted">
+                        Apenas números
+                      </Form.Text>
                     </Form.Group>
                     
                     <Form.Group className="mb-3">
@@ -209,15 +287,17 @@ const Register = () => {
                         </InputGroup.Text>
                         <Form.Control
                           type="password"
-                          placeholder="Crie uma senha"
-                          {...register('senha')}
-                          isInvalid={!!errors.senha}
-                          autoComplete="new-password"
+                          name="senha"
+                          placeholder="Mínimo 6 caracteres"
+                          value={formData.senha}
+                          onChange={handleInputChange}
+                          isInvalid={!!fieldErrors.senha}
+                          disabled={isLoading}
                         />
                       </InputGroup>
-                      {errors.senha && (
+                      {fieldErrors.senha && (
                         <Form.Control.Feedback type="invalid">
-                          {errors.senha.message}
+                          {fieldErrors.senha}
                         </Form.Control.Feedback>
                       )}
                     </Form.Group>
@@ -230,15 +310,17 @@ const Register = () => {
                         </InputGroup.Text>
                         <Form.Control
                           type="password"
-                          placeholder="Confirme sua senha"
-                          {...register('confirmarSenha')}
-                          isInvalid={!!errors.confirmarSenha}
-                          autoComplete="new-password"
+                          name="confirmarSenha"
+                          placeholder="Digite a senha novamente"
+                          value={formData.confirmarSenha}
+                          onChange={handleInputChange}
+                          isInvalid={!!fieldErrors.confirmarSenha}
+                          disabled={isLoading}
                         />
                       </InputGroup>
-                      {errors.confirmarSenha && (
+                      {fieldErrors.confirmarSenha && (
                         <Form.Control.Feedback type="invalid">
-                          {errors.confirmarSenha.message}
+                          {fieldErrors.confirmarSenha}
                         </Form.Control.Feedback>
                       )}
                     </Form.Group>
@@ -269,6 +351,7 @@ const Register = () => {
                       )}
                     </Button>
                   </Form>
+
                   <div className="text-center mt-4">
                     <p className="mb-0">
                       Já tem uma conta?{' '}
@@ -282,6 +365,7 @@ const Register = () => {
                   </div>
                 </Card.Body>
               </Card>
+
               <div className="text-center mt-3">
                 <small className="text-muted">
                   © 2024 SEDUC/MA - Sistema de Recepção v1.0.0

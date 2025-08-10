@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
       const decoded = JSON.parse(atob(payload));
       return decoded;
     } catch (e) {
-      console.error('Falha ao decodificar token', e);
+      
       return null;
     }
   };
@@ -74,10 +74,9 @@ export const AuthProvider = ({ children }) => {
           
           const decodedToken = decodeJwt(token);
           if (decodedToken && decodedToken.exp * 1000 > Date.now()) {
-            // CORREÇÃO: Padroniza o papel ao inicializar, caso a resposta do backend mude
-            const userPapel = decodedToken.papel && decodedToken.papel.length > 0
-              ? decodedToken.papel[0].replace('ROLE_', '')
-              : null;
+            
+            // CORREÇÃO: Lê o papel como uma string diretamente do token decodificado.
+            const userPapel = decodedToken.papel;
             
             const updatedUser = { ...user, papel: userPapel };
 
@@ -104,51 +103,61 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, senha) => {
-    try {
-      dispatch({ type: 'LOADING' });
+  try {
+    
+    dispatch({ type: 'LOADING' });
+    
+    const response = await api.post('/auth/login', { email, senha });
+    
+    
+    const { token, user } = response.data;
 
-      const response = await api.post('/auth/login', { email, senha });
-      const { token, user } = response.data;
-
-      // CORREÇÃO: Agora, esta lógica é mais robusta
-      let userData = user;
-
-      if (!userData && token) {
-          // Se o backend não retornou o usuário, decodifica do token
-          const decodedToken = decodeJwt(token);
-          if (decodedToken) {
-              const userPapel = decodedToken.papel && decodedToken.papel.length > 0
-                  ? decodedToken.papel[0].replace('ROLE_', '')
-                  : null;
-
-              userData = {
-                  nome: decodedToken.nome, // ou outro campo, se existir
-                  email: decodedToken.sub,
-                  papel: userPapel,
-                  statusConta: decodedToken.statusConta // ou outro campo, se existir
-              };
-          }
-      }
-      
-      if (!userData) {
-          throw new Error('Informações do usuário não encontradas.');
-      }
-
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: { user: userData, token }
-      });
-      
-      return { success: true };
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Erro ao fazer login';
-      dispatch({ type: 'ERROR', payload: errorMessage });
-      return { success: false, error: errorMessage };
+    if (!token) {
+      throw new Error('Token não recebido do servidor');
     }
-  };
+
+    // Salvar no localStorage
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    
+    // Atualizar estado
+    dispatch({
+      type: 'LOGIN_SUCCESS',
+      payload: { user, token }
+    });
+    
+    return { success: true };
+  } catch (error) {
+    
+    
+    let errorMessage = 'Erro ao fazer login';
+    
+    if (error.response) {
+      
+      
+      const { status, data } = error.response;
+      
+      if (status === 401) {
+        errorMessage = data?.message || 'Email ou senha incorretos';
+      } else if (status === 400) {
+        errorMessage = data?.message || 'Dados inválidos';
+      } else if (status >= 500) {
+        errorMessage = 'Erro interno do servidor';
+      } else {
+        errorMessage = data?.message || `Erro ${status}`;
+      }
+    } else if (error.request) {
+      
+      errorMessage = 'Erro de conexão. Verifique sua internet.';
+    } else {
+      
+      errorMessage = error.message;
+    }
+    
+    dispatch({ type: 'ERROR', payload: errorMessage });
+    return { success: false, error: errorMessage };
+  }
+};
 
   const logout = () => {
     localStorage.removeItem('authToken');

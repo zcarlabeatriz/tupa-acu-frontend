@@ -3,67 +3,37 @@ import { Container, Row, Col, Card, Badge, Button, Breadcrumb, ProgressBar, List
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import Loading from '../../components/common/Loading/Loading';
+import { dashboardService } from '../../services/api/dashboardService'; // Adicione ou descomente esta linha
 import './DashboardPage.css';
 
 const DashboardPage = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState({});
+  const [stats, setStats] = useState({
+      visitasHoje: 0,
+      visitasPendentes: 0,
+      visitasAprovadas: 0,
+      visitantesCadastrados: 0,
+      servidoresAtivos: 0,
+      setores: 0,
+      visitasPorSetor: [],
+      visitasPorStatus: [],
+      ultimasVisitas: []
+  });
   const { user } = useAuth();
   const { canManageVisitas, canManageServidores } = usePermissions();
 
   useEffect(() => {
-    // Simular carregamento dos dados do dashboard
     const loadData = async () => {
-      await new Promise(resolve => setTimeout(resolve, 900));
-      setStats({
-        visitasHoje: 14,
-        visitasPendentes: 6,
-        visitasAprovadas: 8,
-        visitantesCadastrados: 104,
-        servidoresAtivos: 45,
-        setores: 8,
-        visitasPorSetor: [
-          { setor: 'Gabinete', qtd: 3 },
-          { setor: 'Financeiro', qtd: 2 },
-          { setor: 'RH', qtd: 4 },
-          { setor: 'Tecnologia', qtd: 1 }
-        ],
-        visitasPorStatus: [
-          { status: 'Aprovadas', qtd: 8, variant: 'success' },
-          { status: 'Pendentes', qtd: 6, variant: 'warning' },
-          { status: 'Rejeitadas', qtd: 1, variant: 'danger' }
-        ],
-        ultimasVisitas: [
-          {
-            id: 1,
-            visitante: 'João Silva',
-            setor: 'RH',
-            servidor: 'Maria Rocha',
-            status: 'Aprovada',
-            hora: '09:20',
-            variant: 'success'
-          },
-          {
-            id: 2,
-            visitante: 'Lucas Almeida',
-            setor: 'Gabinete',
-            servidor: 'Carlos Souza',
-            status: 'Pendente',
-            hora: '10:45',
-            variant: 'warning'
-          },
-          {
-            id: 3,
-            visitante: 'Ana Paula',
-            setor: 'Financeiro',
-            servidor: 'Fernanda Lima',
-            status: 'Rejeitada',
-            hora: '11:10',
-            variant: 'danger'
-          }
-        ]
-      });
-      setIsLoading(false);
+      try {
+        // Chama a API real em vez de simular
+        const fetchedStats = await dashboardService.getDashboardStats();
+        setStats(fetchedStats);
+      } catch (error) {
+        console.error('Erro ao carregar dados do dashboard:', error);
+        // Você pode adicionar uma toast ou um alerta para o usuário
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadData();
   }, []);

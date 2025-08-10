@@ -14,8 +14,9 @@ export const formatCPF = (value) => {
   return cpf.slice(0, 11)
     .replace(/(\d{3})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d{1,2})/, '$1-$2');
+    .replace (/(\d{3})(\d{1,2})/, '$1-$2');
 };
+
 
 // Formatar telefone/celular
 export const formatPhone = (value) => {
@@ -37,6 +38,24 @@ export const formatPhone = (value) => {
 // Remover formatação
 export const removeFormatting = (value) => {
   return value ? value.replace(/\D/g, '') : '';
+};
+
+export const handleCPFInput = (value, onChange) => {
+  const numbersOnly = value.replace(/\D/g, '');
+  if (numbersOnly.length <= 11) {
+    const formatted = formatCPF(numbersOnly);
+    onChange(formatted);
+    return numbersOnly; // Retorna só os números para validação
+  }
+};
+
+export const handlePhoneInput = (value, onChange) => {
+  const numbersOnly = value.replace(/\D/g, '');
+  if (numbersOnly.length <= 11) {
+    const formatted = formatPhone(numbersOnly);
+    onChange(formatted);
+    return numbersOnly; // Retorna só os números para validação
+  }
 };
 
 // Formatar data

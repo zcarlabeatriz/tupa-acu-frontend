@@ -7,10 +7,10 @@ export const ROLES = {
 };
 
 export const STATUS_CONTA = {
-  ATIVA: 'ATIVA',
-  INATIVA: 'INATIVA',
-  PENDENTE: 'PENDENTE',
-  BLOQUEADA: 'BLOQUEADA'
+  ATIVO: 'ATIVO',
+  INATIVO: 'INATIVO',
+  PENDENTE_VALIDACAO: 'PENDENTE_VALIDACAO',
+  // BLOQUEADA: 'BLOQUEADA'
 };
 
 export const SITUACAO_SERVIDOR = {
@@ -95,7 +95,10 @@ export const API_ENDPOINTS = {
   SERVIDORES: '/servidores',
   ORGANOGRAMA: '/organograma',
   VISITAS: '/visitas',
-  HORARIOS: '/horarios'
+  HORARIOS: '/horarios',
+  DASHBOARD: {
+    STATS: '/dashboard/stats'
+  }
 };
 
 export const MESSAGES = {

@@ -18,8 +18,8 @@ body {
 
 .content-wrapper {
   flex: 1;
-  padding: 20px;
-  margin-left: 250px;
+  /* padding: 20px; */
+  /* margin-left: 250px; */
   transition: margin-left 0.3s;
 }
 

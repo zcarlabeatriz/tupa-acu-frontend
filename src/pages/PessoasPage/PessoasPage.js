@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Table, Button, Form, InputGroup, Modal, Badge, Dropdown, Breadcrumb } from 'react-bootstrap';
+import { Container, Row, Col, Card, Table, Button, Form, InputGroup, Modal, Badge, Dropdown, Breadcrumb, Alert } from 'react-bootstrap';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { toast } from 'react-toastify';
-// import { pessoasService } from '../../services/api/pessoasService';
+import { pessoasService } from '../../services/api/pessoasService';
 import { pessoaSchema } from '../../services/utils/validators';
-import { formatPhone, formatCPF } from '../../services/utils/formatters';
+import { formatPhone, formatCPF, formatDate } from '../../services/utils/formatters';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import Loading from '../../components/common/Loading/Loading';
 import ConfirmModal from '../../components/common/ConfirmModal/ConfirmModal';
+import { ROLES, STATUS_CONTA } from '../../services/utils/constants'; 
 import './PessoasPage.css';
 
 const PessoasPage = () => {
   const [pessoas, setPessoas] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingPessoa, setEditingPessoa] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,8 +25,15 @@ const PessoasPage = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [personToDelete, setPersonToDelete] = useState(null);
   
-  const { user } = useAuth();
   const { canManagePessoas } = usePermissions();
+
+  const validationSchema = editingPessoa ? pessoaSchema : pessoaSchema.concat(
+    yup.object({
+      senha: yup.string().required('Senha é obrigatória').min(6, 'Senha deve ter no mínimo 6 caracteres'),
+      papel: yup.string().required('Papel é obrigatório'),
+      statusConta: yup.string().required('Status da conta é obrigatório')
+    })
+  );
 
   const {
     register,
@@ -33,18 +43,18 @@ const PessoasPage = () => {
     setValue,
     watch
   } = useForm({
-    resolver: yupResolver(pessoaSchema),
+    resolver: yupResolver(validationSchema),
     defaultValues: {
       nome: '',
       email: '',
       cpf: '',
       celular: '',
-      endereco: '',
-      observacoes: ''
+      senha: '',
+      papel: ROLES.VISITANTE, 
+      statusConta: STATUS_CONTA.PENDENTE_VALIDACAO,
     }
   });
 
-  // Formatação automática dos campos
   const celularValue = watch('celular');
   const cpfValue = watch('cpf');
   
@@ -73,50 +83,10 @@ const PessoasPage = () => {
   const loadPessoas = async () => {
     setIsLoading(true);
     try {
-      // Simulação de dados - substitua pela chamada real da API
-      const mockData = [
-        {
-          id: 1,
-          nome: 'João Silva Santos',
-          email: 'joao.silva@email.com',
-          cpf: '123.456.789-01',
-          celular: '(98) 98765-4321',
-          endereco: 'Rua A, 123 - Centro',
-          status: 'ativo',
-          dataCadastro: '2024-01-15',
-          ultimaVisita: '2024-08-01',
-          totalVisitas: 5
-        },
-        {
-          id: 2,
-          nome: 'Maria Oliveira Costa',
-          email: 'maria.oliveira@email.com',
-          cpf: '987.654.321-09',
-          celular: '(98) 99876-5432',
-          endereco: 'Av. B, 456 - Cohama',
-          status: 'ativo',
-          dataCadastro: '2024-02-20',
-          ultimaVisita: '2024-07-28',
-          totalVisitas: 3
-        },
-        {
-          id: 3,
-          nome: 'Carlos Souza Lima',
-          email: 'carlos.souza@email.com',
-          cpf: '456.789.123-45',
-          celular: '(98) 97654-3210',
-          endereco: 'Rua C, 789 - Calhau',
-          status: 'inativo',
-          dataCadastro: '2024-03-10',
-          ultimaVisita: '2024-06-15',
-          totalVisitas: 1
-        }
-      ];
-      
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setPessoas(mockData);
+      const fetchedData = await pessoasService.getTodasPessoas();
+      setPessoas(fetchedData);
     } catch (error) {
-      toast.error('Erro ao carregar pessoas');
+      toast.error('Erro ao carregar pessoas: ' + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -125,12 +95,12 @@ const PessoasPage = () => {
   const handleOpenModal = (pessoa = null) => {
     setEditingPessoa(pessoa);
     if (pessoa) {
-      setValue('nome', pessoa.nome);
-      setValue('email', pessoa.email);
-      setValue('cpf', pessoa.cpf);
-      setValue('celular', pessoa.celular);
-      setValue('endereco', pessoa.endereco || '');
-      setValue('observacoes', pessoa.observacoes || '');
+      reset({
+        nome: pessoa.nome,
+        email: pessoa.email,
+        cpf: pessoa.cpf,
+        celular: pessoa.celular,
+      });
     } else {
       reset();
     }
@@ -144,18 +114,39 @@ const PessoasPage = () => {
   };
 
   const onSubmit = async (data) => {
+    setIsSubmitting(true);
     try {
+      let result;
+      const pessoaData = {
+        ...data,
+        cpf: data.cpf.replace(/\D/g, ''),
+        celular: data.celular ? data.celular.replace(/\D/g, '') : null,
+      };
+
       if (editingPessoa) {
-        // Atualizar pessoa existente
-        toast.success('Pessoa atualizada com sucesso!');
+        const updateData = {
+          nome: pessoaData.nome,
+          email: pessoaData.email,
+          celular: pessoaData.celular,
+          papel: editingPessoa.papel,
+          statusConta: editingPessoa.statusConta,
+        };
+        result = await pessoasService.atualizarPessoa(editingPessoa.id, updateData);
       } else {
-        // Criar nova pessoa
-        toast.success('Pessoa cadastrada com sucesso!');
+        result = await pessoasService.criarPessoa(pessoaData);
       }
-      handleCloseModal();
-      loadPessoas();
+
+      if (result.success) {
+        toast.success(editingPessoa ? 'Pessoa atualizada com sucesso!' : 'Pessoa cadastrada com sucesso!');
+        handleCloseModal();
+        loadPessoas();
+      } else {
+        toast.error(result.error);
+      }
     } catch (error) {
       toast.error('Erro ao salvar pessoa');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -165,41 +156,81 @@ const PessoasPage = () => {
   };
 
   const confirmDelete = async () => {
+    setIsSubmitting(true);
     try {
-      // Chamada para API de exclusão
-      toast.success('Pessoa excluída com sucesso!');
-      setShowDeleteModal(false);
-      setPersonToDelete(null);
-      loadPessoas();
+      const result = await pessoasService.deletarPessoa(personToDelete.id);
+      if (result.success) {
+        toast.success('Pessoa excluída com sucesso!');
+        setShowDeleteModal(false);
+        setPersonToDelete(null);
+        loadPessoas();
+      } else {
+        toast.error(result.error);
+      }
     } catch (error) {
       toast.error('Erro ao excluir pessoa');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const toggleStatus = async (pessoa) => {
     try {
-      const newStatus = pessoa.status === 'ativo' ? 'inativo' : 'ativo';
-      // Chamada para API de atualização de status
-      toast.success(`Pessoa ${newStatus === 'ativo' ? 'ativada' : 'desativada'} com sucesso!`);
-      loadPessoas();
+      const newStatus = pessoa.statusConta === STATUS_CONTA.ATIVO ? STATUS_CONTA.INATIVO : STATUS_CONTA.ATIVO;
+      const updateData = {
+        nome: pessoa.nome,
+        email: pessoa.email,
+        celular: pessoa.celular,
+        papel: pessoa.papel,
+        statusConta: newStatus,
+      };
+      
+      const result = await pessoasService.atualizarPessoa(pessoa.id, updateData);
+      if (result.success) {
+        toast.success(`Pessoa ${newStatus === STATUS_CONTA.ATIVO ? 'ativada' : 'desativada'} com sucesso!`);
+        loadPessoas();
+      } else {
+        toast.error(result.error);
+      }
     } catch (error) {
       toast.error('Erro ao alterar status');
     }
   };
 
-  // Filtrar pessoas
   const filteredPessoas = pessoas.filter(pessoa => {
     const matchesSearch = pessoa.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          pessoa.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          pessoa.cpf.includes(searchTerm);
-    const matchesStatus = filterStatus === 'all' || pessoa.status === filterStatus;
+    const matchesStatus = filterStatus === 'all' || pessoa.statusConta === filterStatus;
     return matchesSearch && matchesStatus;
   });
+  
+  const getStatusBadge = (statusConta) => {
+    switch (statusConta) {
+      case STATUS_CONTA.ATIVO:
+        return <Badge bg="success">{STATUS_CONTA.ATIVO}</Badge>;
+      case STATUS_CONTA.INATIVO:
+        return <Badge bg="secondary">{STATUS_CONTA.INATIVO}</Badge>;
+      case STATUS_CONTA.PENDENTE_VALIDACAO:
+        return <Badge bg="warning">{STATUS_CONTA.PENDENTE_VALIDACAO}</Badge>;
+      default:
+        return <Badge bg="light">Desconhecido</Badge>;
+    }
+  };
 
-  const getStatusBadge = (status) => {
-    return status === 'ativo' ? 
-      <Badge bg="success">Ativo</Badge> : 
-      <Badge bg="secondary">Inativo</Badge>;
+  const getPapelBadge = (papel) => {
+    switch (papel) {
+      case ROLES.ADMIN:
+        return <Badge bg="danger">{ROLES.ADMIN}</Badge>;
+      case ROLES.SERVIDOR:
+        return <Badge bg="info">{ROLES.SERVIDOR}</Badge>;
+      case ROLES.RECEPCIONISTA:
+        return <Badge bg="warning">{ROLES.RECEPCIONISTA}</Badge>;
+      case ROLES.VISITANTE:
+        return <Badge bg="primary">{ROLES.VISITANTE}</Badge>;
+      default:
+        return <Badge bg="light">Desconhecido</Badge>;
+    }
   };
 
   if (isLoading) {
@@ -268,8 +299,9 @@ const PessoasPage = () => {
                     onChange={e => setFilterStatus(e.target.value)}
                   >
                     <option value="all">Todos</option>
-                    <option value="ativo">Ativos</option>
-                    <option value="inativo">Inativos</option>
+                    <option value={STATUS_CONTA.ATIVO}>Ativos</option>
+                    <option value={STATUS_CONTA.INATIVO}>Inativos</option>
+                    <option value={STATUS_CONTA.PENDENTE_VALIDACAO}>Pendentes</option>
                   </Form.Select>
                 </Form.Group>
               </Col>
@@ -301,7 +333,7 @@ const PessoasPage = () => {
                     <th>CPF</th>
                     <th>Celular</th>
                     <th>Status</th>
-                    <th>Visitas</th>
+                    <th>Papel</th>
                     <th>Cadastro</th>
                     <th width="120">Ações</th>
                   </tr>
@@ -323,14 +355,9 @@ const PessoasPage = () => {
                       <td>{pessoa.email}</td>
                       <td className="font-monospace">{pessoa.cpf}</td>
                       <td className="font-monospace">{pessoa.celular}</td>
-                      <td>{getStatusBadge(pessoa.status)}</td>
-                      <td>
-                        <span className="fw-bold">{pessoa.totalVisitas}</span>
-                        <div className="text-muted small">
-                          Última: {new Date(pessoa.ultimaVisita).toLocaleDateString('pt-BR')}
-                        </div>
-                      </td>
-                      <td>{new Date(pessoa.dataCadastro).toLocaleDateString('pt-BR')}</td>
+                      <td>{getStatusBadge(pessoa.statusConta)}</td>
+                      <td>{getPapelBadge(pessoa.papel)}</td>
+                      <td>{pessoa.dataCriacao ? formatDate(pessoa.dataCriacao) : 'N/A'}</td>
                       <td>
                         <Dropdown>
                           <Dropdown.Toggle variant="outline-secondary" size="sm">
@@ -342,8 +369,8 @@ const PessoasPage = () => {
                               Editar
                             </Dropdown.Item>
                             <Dropdown.Item onClick={() => toggleStatus(pessoa)}>
-                              <i className={`fas fa-${pessoa.status === 'ativo' ? 'ban' : 'check'} me-2`}></i>
-                              {pessoa.status === 'ativo' ? 'Desativar' : 'Ativar'}
+                              <i className={`fas fa-${pessoa.statusConta === STATUS_CONTA.ATIVO ? 'ban' : 'check'} me-2`}></i>
+                              {pessoa.statusConta === STATUS_CONTA.ATIVO ? 'Desativar' : 'Ativar'}
                             </Dropdown.Item>
                             <Dropdown.Divider />
                             <Dropdown.Item 
@@ -419,6 +446,7 @@ const PessoasPage = () => {
                       placeholder="000.000.000-00"
                       {...register('cpf')}
                       isInvalid={!!errors.cpf}
+                      readOnly={!!editingPessoa}
                     />
                     <Form.Control.Feedback type="invalid">
                       {errors.cpf?.message}
@@ -440,35 +468,59 @@ const PessoasPage = () => {
                   </Form.Group>
                 </Col>
               </Row>
-              <Form.Group className="mb-3">
-                <Form.Label>Endereço</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Endereço completo"
-                  {...register('endereco')}
-                  isInvalid={!!errors.endereco}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {errors.endereco?.message}
-                </Form.Control.Feedback>
-              </Form.Group>
-              <Form.Group>
-                <Form.Label>Observações</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  placeholder="Observações adicionais..."
-                  {...register('observacoes')}
-                />
-              </Form.Group>
+              
+              {!editingPessoa && (
+                <>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Senha</Form.Label>
+                    <Form.Control
+                      type="password"
+                      placeholder="Senha para a nova pessoa"
+                      {...register('senha')}
+                      isInvalid={!!errors.senha}
+                    />
+                    <Form.Control.Feedback type="invalid">
+                      {errors.senha?.message}
+                    </Form.Control.Feedback>
+                  </Form.Group>
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Papel</Form.Label>
+                        <Form.Select
+                          {...register('papel')}
+                          isInvalid={!!errors.papel}
+                        >
+                          {Object.values(ROLES).map(role => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Status da Conta</Form.Label>
+                        <Form.Select
+                          {...register('statusConta')}
+                          isInvalid={!!errors.statusConta}
+                        >
+                          {Object.values(STATUS_CONTA).map(status => (
+                            <option key={status} value={status}>{status}</option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                </>
+              )}
             </Modal.Body>
             <Modal.Footer>
-              <Button variant="secondary" onClick={handleCloseModal}>
+              <Button variant="secondary" onClick={handleCloseModal} disabled={isSubmitting}>
                 Cancelar
               </Button>
-              <Button variant="primary" type="submit">
+              <Button variant="primary" type="submit" disabled={isSubmitting}>
                 <i className="fas fa-save me-2"></i>
-                {editingPessoa ? 'Atualizar' : 'Cadastrar'}
+                {isSubmitting ? 'Salvando...' : editingPessoa ? 'Atualizar' : 'Cadastrar'}
               </Button>
             </Modal.Footer>
           </Form>
@@ -482,6 +534,7 @@ const PessoasPage = () => {
           title="Confirmar Exclusão"
           message={`Tem certeza que deseja excluir a pessoa "${personToDelete?.nome}"? Esta ação não pode ser desfeita.`}
           variant="danger"
+          isLoading={isSubmitting}
         />
       </Container>
     </div>

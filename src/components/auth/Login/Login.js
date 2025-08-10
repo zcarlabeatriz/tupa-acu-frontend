@@ -4,17 +4,18 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
-// import { useAuth } from '../../../hooks/useAuth';
 import { loginSchema } from '../../../services/utils/validators';
 import { useAuth } from '../../../context/AuthContext';
-import Loading from '../../common/Loading/Loading';
+import logo from '../../../assets/images/tuapa-acu.png';
+// import Loading from '../../common/Loading/Loading';
 import './Login.css';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [isLoginLoading, setIsLoginLoading] = useState(false);
-  const { login, isAuthenticated, error, clearError } = useAuth();
+  const [localError, setLocalError] = useState('');
+  
+  const { login, isAuthenticated, clearError, error } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -24,20 +25,26 @@ const Login = () => {
     register,
     handleSubmit,
     formState: { errors },
-    setFocus
+    setFocus,
+    watch 
   } = useForm({
     resolver: yupResolver(loginSchema),
     defaultValues: {
       email: '',
       senha: ''
-    }
+    },
+    mode: 'onChange' 
   });
 
-  // useEffect(() => {
-  //   if (isAuthenticated) {
-  //     navigate(from, { replace: true });
-  //   }
-  // }, [isAuthenticated, navigate, from]);
+  
+  const emailValue = watch('email');
+  const senhaValue = watch('senha');
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, from]);
 
   useEffect(() => {
     setFocus('email');
@@ -45,31 +52,73 @@ const Login = () => {
 
   useEffect(() => {
     if (error) {
+      setLocalError(error);
       toast.error(error);
       clearError();
     }
   }, [error, clearError]);
 
+  
+  // useEffect(() => {
+  //   if (localError && (emailValue || senhaValue)) {
+  //     setLocalError('');
+  //   }
+  // }, [emailValue, senhaValue, localError]);
+
+  // ✅ Função de submit mais robusta
   const onSubmit = async (data) => {
+    
+    
+    // Prevenir múltiplos submits
+    if (isLoginLoading) {
+      return;
+    }
+    
     setIsLoginLoading(true);
+    setLocalError('');
     
     try {
+      
       const result = await login(data.email, data.senha);
       
-      if (result.success) {
-        toast.success('Login realizado com sucesso!');
-        navigate(from, { replace: true });
+      
+      if (result && result.success) {
+        
+        toast.success('Login realizado com sucesso!', {
+          position: "top-right",
+          autoClose: 3000,
+        });
+        // Pequeno delay para mostrar o toast
+        setTimeout(() => {
+          navigate(from, { replace: true });
+        }, 100);
+      } else {
+        const errorMsg = result?.error || 'Email ou senha incorretos';
+       
+        setLocalError(errorMsg);
+        toast.error(errorMsg, {
+          position: "top-right",
+          autoClose: 5000,
+        });
       }
     } catch (err) {
-      toast.error('Erro inesperado. Tente novamente.');
+      
+      const errorMsg = 'Erro de conexão. Verifique sua internet.';
+      setLocalError(errorMsg);
+      toast.error(errorMsg);
     } finally {
-      setIsLoading(false);
+      
+      setIsLoginLoading(false);
     }
   };
 
-  // if (isLoading) {
-  //   return <Loading fullPage text="Fazendo login..." />;
-  // }
+  // ✅ Handler para o evento do formulário
+  const handleFormSubmit = (e) => {
+    e.preventDefault(); 
+    e.stopPropagation();
+    
+    handleSubmit(onSubmit)(e); 
+  };
 
   return (
     <div className="login-page">
@@ -80,40 +129,16 @@ const Login = () => {
             <div className="login-info-content">
               <div className="logo-container mb-4">
                 <img 
-                  src="/logo-seduc.png" 
-                  alt="SEDUC/MA" 
+                  src={logo} 
+                  alt="logo tupa-acu" 
                   className="logo-img"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                  }}
+                  
                 />
-                <h1 className="logo-text">SISREC</h1>
+                <h1 className="logo-text">TUPÃ-AÇU</h1>
               </div>
               <h2 className="info-title">
                 Sistema de Recepção
               </h2>
-              <p className="info-description">
-                Gerencie visitantes e servidores com eficiência e segurança. 
-                Controle de acesso, agendamentos e relatórios em uma plataforma completa.
-              </p>
-              <div className="features-list">
-                <div className="feature-item">
-                  <i className="fas fa-check-circle"></i>
-                  <span>Controle de visitantes</span>
-                </div>
-                <div className="feature-item">
-                  <i className="fas fa-check-circle"></i>
-                  <span>Agendamento de visitas</span>
-                </div>
-                <div className="feature-item">
-                  <i className="fas fa-check-circle"></i>
-                  <span>Geração de QR Code</span>
-                </div>
-                <div className="feature-item">
-                  <i className="fas fa-check-circle"></i>
-                  <span>Relatórios detalhados</span>
-                </div>
-              </div>
             </div>
           </Col>
 
@@ -122,8 +147,8 @@ const Login = () => {
             <div className="login-form-container">
               <Card className="login-card">
                 <Card.Body className="p-5">
-                  <div className="text-center mb-4">
-                    <h3 className="login-title">Bem-vindo de volta!</h3>
+                  <div className="text-center mb-4 bg-blue-500">
+                    {/* <h3 className="login-title">Bem-vindo de volta!</h3> */}
                     <p className="login-subtitle text-muted">
                       Faça login para acessar o sistema
                     </p>
@@ -135,7 +160,18 @@ const Login = () => {
                     </Alert>
                   )}
 
-                  <Form onSubmit={handleSubmit(onSubmit)} noValidate>
+                  {localError && (
+                    <Alert variant="danger" className="mb-4" dismissible onClose={() => setLocalError('')}>
+                      <Alert.Heading as="h6">
+                        <i className="fas fa-exclamation-triangle me-2"></i>
+                        Erro de Login
+                      </Alert.Heading>
+                      <p className="mb-0">{localError}</p>
+                    </Alert>
+                  )}
+
+                  {/* ✅ Form com handler personalizado */}
+                  <Form onSubmit={handleFormSubmit} noValidate>
                     <Form.Group className="mb-3">
                       <Form.Label>Email</Form.Label>
                       <InputGroup>
@@ -148,6 +184,7 @@ const Login = () => {
                           {...register('email')}
                           isInvalid={!!errors.email}
                           autoComplete="email"
+                          disabled={isLoginLoading}
                         />
                       </InputGroup>
                       {errors.email && (
@@ -169,11 +206,17 @@ const Login = () => {
                           {...register('senha')}
                           isInvalid={!!errors.senha}
                           autoComplete="current-password"
+                          disabled={isLoginLoading}
                         />
                         <Button
                           variant="outline-secondary"
-                          onClick={() => setShowPassword(!showPassword)}
+                          onClick={(e) => {
+                            e.preventDefault(); // ✅ Prevenir submit
+                            setShowPassword(!showPassword);
+                          }}
                           type="button"
+                          disabled={isLoginLoading}
+                          tabIndex={-1} // ✅ Evitar foco por tab
                         >
                           <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                         </Button>
@@ -190,10 +233,12 @@ const Login = () => {
                         type="checkbox"
                         label="Lembrar de mim"
                         id="remember-me"
+                        disabled={isLoginLoading}
                       />
                       <Link 
                         to="/forgot-password" 
-                        className="text-decoration-none"
+                        className={`text-decoration-none ${isLoginLoading ? 'text-muted' : ''}`}
+                        onClick={(e) => isLoginLoading && e.preventDefault()}
                       >
                         Esqueceu a senha?
                       </Link>
@@ -204,9 +249,9 @@ const Login = () => {
                       variant="primary"
                       size="lg"
                       className="w-100 login-btn"
-                      disabled={isLoading}
+                      disabled={isLoginLoading}
                     >
-                      {isLoading ? (
+                      {isLoginLoading ? (
                         <>
                           <Spinner
                             as="span"
@@ -231,7 +276,8 @@ const Login = () => {
                       Não tem uma conta?{' '}
                       <Link 
                         to="/register" 
-                        className="text-decoration-none fw-bold"
+                        className={`text-decoration-none fw-bold ${isLoginLoading ? 'text-muted' : ''}`}
+                        onClick={(e) => isLoginLoading && e.preventDefault()}
                       >
                         Registre-se aqui
                       </Link>
