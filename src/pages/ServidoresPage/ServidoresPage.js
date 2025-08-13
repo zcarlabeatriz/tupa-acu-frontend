@@ -6,9 +6,9 @@ import { toast } from 'react-toastify';
 import { servidoresService } from '../../services/api/servidoresService';
 import { servidorSchema } from '../../services/utils/validators';
 import { formatPhone, formatCPF, formatDate } from '../../services/utils/formatters';
-import { useAuth } from '../../context/AuthContext';
+// import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
-import { ROLES, SITUACAO_SERVIDOR } from '../../services/utils/constants';
+import { ROLES, SITUACAO_SERVIDOR, STATUS_CONTA } from '../../services/utils/constants';
 import Loading from '../../components/common/Loading/Loading';
 import ConfirmModal from '../../components/common/ConfirmModal/ConfirmModal';
 import './ServidoresPage.css';
@@ -32,26 +32,28 @@ const ServidoresPage = () => {
   const { canManageServidores, isAdmin } = usePermissions();
 
   const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-    setValue,
-    watch
-  } = useForm({
-    resolver: yupResolver(servidorSchema),
-    defaultValues: {
-      nome: '',
-      email: '',
-      cpf: '',
-      celular: '',
-      matricula: '',
-      cargo: '',
-      setorId: '',
-      papel: ROLES.SERVIDOR,
-      situacao: SITUACAO_SERVIDOR.ATIVO
-    }
-  });
+  register,
+  handleSubmit,
+  formState: { errors },
+  reset,
+  setValue,
+  watch
+} = useForm({
+  resolver: yupResolver(servidorSchema),
+  defaultValues: {
+    nome: '',
+    email: '',
+    cpf: '',
+    celular: '',
+    matricula: '',
+    cargo: '',
+    setorId: '',
+    papel: ROLES.SERVIDOR,
+    situacao: SITUACAO_SERVIDOR.ATIVO,
+    senha: '', // Adicionar
+    statusConta: STATUS_CONTA.ATIVO // Adicionar
+  }
+});
 
   const celularValue = watch('celular');
   const cpfValue = watch('cpf');
@@ -641,10 +643,10 @@ const ServidoresPage = () => {
                       {...register('papel')}
                       isInvalid={!!errors.papel}
                     >
-                      <option value={ROLES.SERVIDOR}>Servidor</option>
-                      <option value={ROLES.RECEPCIONISTA}>Recepcionista</option>
+                      <option value={ROLES.SERVIDOR}>{ROLES.SERVIDOR}</option>
+                      <option value={ROLES.RECEPCIONISTA}>{ROLES.RECEPCIONISTA}</option>
                       {isAdmin() && (
-                        <option value={ROLES.ADMIN}>Administrador</option>
+                        <option value={ROLES.ADMIN}>{ROLES.ADMIN}</option>
                       )}
                     </Form.Select>
                     <Form.Control.Feedback type="invalid">
@@ -653,6 +655,38 @@ const ServidoresPage = () => {
                   </Form.Group>
                 </Col>
               </Row>
+              <Row>
+      <Col md={6}>
+        <Form.Group className="mb-3">
+          <Form.Label>Senha</Form.Label>
+          <Form.Control
+            type="password"
+            placeholder="Senha temporária"
+            {...register('senha')}
+            isInvalid={!!errors.senha}
+          />
+          <Form.Control.Feedback type="invalid">
+            {errors.senha?.message}
+          </Form.Control.Feedback>
+        </Form.Group>
+      </Col>
+      <Col md={6}>
+        <Form.Group className="mb-3">
+          <Form.Label>Status da Conta</Form.Label>
+          <Form.Select
+            {...register('statusConta')}
+            isInvalid={!!errors.statusConta}
+          >
+            <option value={STATUS_CONTA.ATIVO}>{STATUS_CONTA.ATIVO}</option>
+            <option value={STATUS_CONTA.INATIVO}>{STATUS_CONTA.INATIVO}</option>
+            <option value={STATUS_CONTA.PENDENTE_VALIDACAO}>{STATUS_CONTA.PENDENTE_VALIDACAO}</option>
+          </Form.Select>
+          <Form.Control.Feedback type="invalid">
+            {errors.statusConta?.message}
+          </Form.Control.Feedback>
+        </Form.Group>
+      </Col>
+    </Row>
               <Form.Group>
                 <Form.Label>Observações</Form.Label>
                 <Form.Control

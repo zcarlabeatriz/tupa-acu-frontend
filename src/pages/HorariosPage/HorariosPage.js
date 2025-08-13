@@ -3,8 +3,9 @@ import { Container, Row, Col, Card, Table, Button, Form, InputGroup, Modal, Badg
 import { useForm, useFieldArray } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { toast } from 'react-toastify';
-// import { horariosService } from '../../services/api/horariosService';
-import { horarioSchema, bloqueioSchema } from '../../services/utils/validators';
+import { horariosService } from '../../services/api/horariosService';
+import { organogramaService } from '../../services/api/organogramaService';
+import { horarioAtendimentoSchema, bloqueioSchema } from '../../services/utils/validators';
 import { formatDate, formatDateTime, formatTime } from '../../services/utils/formatters';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -14,52 +15,44 @@ import CalendarioHorarios from '../../components/horarios/CalendarioHorarios/Cal
 import './HorariosPage.css';
 
 const DIAS_SEMANA = [
-  { id: 0, nome: 'Domingo', abrev: 'Dom' },
-  { id: 1, nome: 'Segunda-feira', abrev: 'Seg' },
-  { id: 2, nome: 'Terça-feira', abrev: 'Ter' },
-  { id: 3, nome: 'Quarta-feira', abrev: 'Qua' },
-  { id: 4, nome: 'Quinta-feira', abrev: 'Qui' },
-  { id: 5, nome: 'Sexta-feira', abrev: 'Sex' },
-  { id: 6, nome: 'Sábado', abrev: 'Sab' }
+  { id: 'DOMINGO', nome: 'Domingo', abrev: 'Dom' },
+  { id: 'SEGUNDA', nome: 'Segunda-feira', abrev: 'Seg' },
+  { id: 'TERCA', nome: 'Terça-feira', abrev: 'Ter' },
+  { id: 'QUARTA', nome: 'Quarta-feira', abrev: 'Qua' },
+  { id: 'QUINTA', nome: 'Quinta-feira', abrev: 'Qui' },
+  { id: 'SEXTA', nome: 'Sexta-feira', abrev: 'Sex' },
+  { id: 'SABADO', nome: 'Sábado', abrev: 'Sab' }
 ];
 
 const HorariosPage = () => {
-  const [configuracoes, setConfiguracoes] = useState([]);
+  const [horarios, setHorarios] = useState([]);
   const [bloqueios, setBloqueios] = useState([]);
   const [setores, setSetores] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showHorarioModal, setShowHorarioModal] = useState(false);
   const [showBloqueioModal, setShowBloqueioModal] = useState(false);
-  const [editingConfig, setEditingConfig] = useState(null);
+  const [editingHorario, setEditingHorario] = useState(null);
   const [editingBloqueio, setEditingBloqueio] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSetor, setFilterSetor] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterDia, setFilterDia] = useState('all');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteType, setDeleteType] = useState('');
-  const [activeTab, setActiveTab] = useState('configuracoes');
+  const [activeTab, setActiveTab] = useState('horarios');
   const [calendarioData, setCalendarioData] = useState([]);
   
   const { user } = useAuth();
   const { isAdmin } = usePermissions();
 
-  // Form para configurações
-  const configForm = useForm({
-    resolver: yupResolver(horarioSchema),
+  // Form para horários
+  const horarioForm = useForm({
+    resolver: yupResolver(horarioAtendimentoSchema),
     defaultValues: {
-      nome: '',
-      descricao: '',
       setorId: '',
-      diasSemana: [],
-      horaInicio: '08:00',
-      horaFim: '17:00',
-      intervaloMinutos: 60,
-      maxVisitasPorHorario: 1,
-      antecedenciaMinima: 24,
-      antecedenciaMaxima: 720,
-      observacoes: '',
-      ativo: true
+      diaSemana: '',
+      horaInicio: '',
+      horaFim: ''
     }
   });
 
@@ -79,10 +72,7 @@ const HorariosPage = () => {
     }
   });
 
-  const { fields: diasFields, append: appendDia, remove: removeDia } = useFieldArray({
-    control: configForm.control,
-    name: 'diasSemana'
-  });
+
 
   useEffect(() => {
     loadData();
@@ -91,196 +81,80 @@ const HorariosPage = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Simulação de dados - substitua pelas chamadas reais da API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('🔄 Carregando dados da página de horários...');
       
-      const mockSetores = [
-        { id: 1, nome: 'Gabinete' },
-        { id: 2, nome: 'Recursos Humanos' },
-        { id: 3, nome: 'Financeiro' },
-        { id: 4, nome: 'Tecnologia da Informação' },
-        { id: 5, nome: 'Planejamento' }
-      ];
-
-      const mockConfiguracoes = [
-        {
-          id: 1,
-          nome: 'Horário Comercial Gabinete',
-          descricao: 'Atendimento padrão do gabinete',
-          setorId: 1,
-          setor: { nome: 'Gabinete' },
-          diasSemana: [1, 2, 3, 4, 5],
-          horaInicio: '08:00',
-          horaFim: '17:00',
-          intervaloMinutos: 60,
-          maxVisitasPorHorario: 2,
-          antecedenciaMinima: 24,
-          antecedenciaMaxima: 168,
-          observacoes: 'Atendimento de segunda a sexta',
-          ativo: true,
-          dataCriacao: '2025-01-15T10:00:00Z',
-          criadoPor: 'wesleygatinho',
-          totalVisitasAgendadas: 45
-        },
-        {
-          id: 2,
-          nome: 'Horário RH',
-          descricao: 'Atendimento específico do RH',
-          setorId: 2,
-          setor: { nome: 'Recursos Humanos' },
-          diasSemana: [1, 2, 3, 4, 5],
-          horaInicio: '08:30',
-          horaFim: '16:30',
-          intervaloMinutos: 30,
-          maxVisitasPorHorario: 1,
-          antecedenciaMinima: 48,
-          antecedenciaMaxima: 336,
-          observacoes: 'Atendimento com agendamento prévio obrigatório',
-          ativo: true,
-          dataCriacao: '2025-02-01T14:00:00Z',
-          criadoPor: 'admin',
-          totalVisitasAgendadas: 28
-        },
-        {
-          id: 3,
-          nome: 'Horário TI - Manutenção',
-          descricao: 'Horário especial para manutenções',
-          setorId: 4,
-          setor: { nome: 'Tecnologia da Informação' },
-          diasSemana: [6],
-          horaInicio: '08:00',
-          horaFim: '12:00',
-          intervaloMinutos: 120,
-          maxVisitasPorHorario: 1,
-          antecedenciaMinima: 72,
-          antecedenciaMaxima: 720,
-          observacoes: 'Apenas para manutenções de sistema',
-          ativo: false,
-          dataCriacao: '2025-03-10T09:00:00Z',
-          criadoPor: 'wesleygatinho',
-          totalVisitasAgendadas: 5
-        }
-      ];
-
-      const mockBloqueios = [
-        {
-          id: 1,
-          titulo: 'Reunião Mensal de Diretoria',
-          descricao: 'Reunião mensal com toda diretoria',
-          dataInicio: '2025-08-15',
-          dataFim: '2025-08-15',
-          horaInicio: '09:00',
-          horaFim: '12:00',
-          setorId: 1,
-          setor: { nome: 'Gabinete' },
-          tipoRecorrencia: 'mensal',
-          observacoes: 'Primeira quinta-feira de cada mês',
-          dataCriacao: '2025-08-01T10:00:00Z',
-          criadoPor: 'wesleygatinho'
-        },
-        {
-          id: 2,
-          titulo: 'Manutenção do Sistema',
-          descricao: 'Manutenção preventiva dos sistemas',
-          dataInicio: '2025-08-10',
-          dataFim: '2025-08-10',
-          horaInicio: '06:00',
-          horaFim: '08:00',
-          setorId: 4,
-          setor: { nome: 'Tecnologia da Informação' },
-          tipoRecorrencia: 'semanal',
-          observacoes: 'Todo sábado pela manhã',
-          dataCriacao: '2025-07-20T15:00:00Z',
-          criadoPor: 'admin'
-        },
-        {
-          id: 3,
-          titulo: 'Feriado Nacional',
-          descricao: 'Independência do Brasil',
-          dataInicio: '2025-09-07',
-          dataFim: '2025-09-07',
-          horaInicio: '00:00',
-          horaFim: '23:59',
-          setorId: null,
-          setor: null,
-          tipoRecorrencia: 'anual',
-          observacoes: 'Bloqueio geral - feriado nacional',
-          dataCriacao: '2025-01-01T08:00:00Z',
-          criadoPor: 'admin'
-        }
-      ];
-
-      // Dados para o calendário
-      const mockCalendario = [
-        {
-          id: 'config-1',
-          title: 'Gabinete 08:00-17:00',
-          start: '2025-08-08T08:00:00',
-          end: '2025-08-08T17:00:00',
-          color: '#10b981',
-          type: 'config'
-        },
-        {
-          id: 'bloqueio-1',
-          title: 'Reunião Diretoria',
-          start: '2025-08-15T09:00:00',
-          end: '2025-08-15T12:00:00',
-          color: '#ef4444',
-          type: 'bloqueio'
-        }
-      ];
-
-      setSetores(mockSetores);
-      setConfiguracoes(mockConfiguracoes);
-      setBloqueios(mockBloqueios);
-      setCalendarioData(mockCalendario);
+      // Carregar setores
+      console.log('📋 Carregando setores...');
+      const setoresData = await organogramaService.listarTodos();
+      console.log('✅ Setores carregados:', setoresData.length, 'itens');
+      setSetores(setoresData);
+      
+      // Carregar horários de atendimento
+      console.log('⏰ Carregando horários...');
+      const horariosData = await horariosService.listarTodos();
+      console.log('✅ Horários carregados:', horariosData.length, 'itens');
+      console.log('📊 Dados dos horários:', horariosData);
+      setHorarios(horariosData);
+      
+      // Preparar dados para o calendário
+      const calData = horariosData.map(horario => ({
+        id: horario.id,
+        title: `${horario.setorNome} - ${horario.diaSemana}`,
+        setor: horario.setorNome,
+        diaSemana: horario.diaSemana,
+        horaInicio: horario.horaInicio,
+        horaFim: horario.horaFim
+      }));
+      
+      setCalendarioData(calData);
+      console.log('🎯 Dados carregados com sucesso!');
       
     } catch (error) {
-      toast.error('Erro ao carregar dados');
+      console.error('❌ Erro ao carregar dados:', error);
+      console.error('📡 Detalhes do erro:', error.response?.data);
+      toast.error(`Erro ao carregar dados: ${error.response?.data?.message || error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handlers para Configurações
-  const handleOpenConfigModal = (config = null) => {
-    setEditingConfig(config);
-    if (config) {
-      configForm.setValue('nome', config.nome);
-      configForm.setValue('descricao', config.descricao);
-      configForm.setValue('setorId', config.setorId);
-      configForm.setValue('diasSemana', config.diasSemana);
-      configForm.setValue('horaInicio', config.horaInicio);
-      configForm.setValue('horaFim', config.horaFim);
-      configForm.setValue('intervaloMinutos', config.intervaloMinutos);
-      configForm.setValue('maxVisitasPorHorario', config.maxVisitasPorHorario);
-      configForm.setValue('antecedenciaMinima', config.antecedenciaMinima);
-      configForm.setValue('antecedenciaMaxima', config.antecedenciaMaxima);
-      configForm.setValue('observacoes', config.observacoes || '');
-      configForm.setValue('ativo', config.ativo);
+  // Handlers para Horários
+  const handleOpenHorarioModal = (horario = null) => {
+    setEditingHorario(horario);
+    if (horario) {
+      horarioForm.setValue('setorId', horario.setorId);
+      horarioForm.setValue('diaSemana', horario.diaSemana);
+      horarioForm.setValue('horaInicio', horario.horaInicio);
+      horarioForm.setValue('horaFim', horario.horaFim);
     } else {
-      configForm.reset();
+      horarioForm.reset();
     }
-    setShowConfigModal(true);
+    setShowHorarioModal(true);
   };
 
-  const handleCloseConfigModal = () => {
-    setShowConfigModal(false);
-    setEditingConfig(null);
-    configForm.reset();
+  const handleCloseHorarioModal = () => {
+    setShowHorarioModal(false);
+    setEditingHorario(null);
+    horarioForm.reset();
   };
 
-  const onSubmitConfig = async (data) => {
+  const handleSaveHorario = async (data) => {
     try {
-      if (editingConfig) {
-        toast.success('Configuração de horário atualizada com sucesso!');
+      if (editingHorario) {
+        await horariosService.atualizar(editingHorario.id, data);
+        toast.success('Horário atualizado com sucesso!');
       } else {
-        toast.success('Configuração de horário criada com sucesso!');
+        await horariosService.criar(data);
+        toast.success('Horário criado com sucesso!');
       }
-      handleCloseConfigModal();
+      
+      setShowHorarioModal(false);
+      setEditingHorario(null);
+      horarioForm.reset();
       loadData();
     } catch (error) {
-      toast.error('Erro ao salvar configuração');
+      console.error('Erro ao salvar horário:', error);
+      toast.error('Erro ao salvar horário');
     }
   };
 
@@ -332,17 +206,21 @@ const HorariosPage = () => {
 
   const confirmDelete = async () => {
     try {
-      const message = deleteType === 'config' ? 
-        'Configuração excluída com sucesso!' : 
-        'Bloqueio excluído com sucesso!';
+      if (deleteType === 'horario') {
+        await horariosService.deletar(itemToDelete.id);
+        toast.success('Horário deletado com sucesso!');
+      } else if (deleteType === 'bloqueio') {
+        console.log('Deletando bloqueio:', itemToDelete.id);
+        toast.success('Bloqueio deletado com sucesso!');
+      }
       
-      toast.success(message);
       setShowDeleteModal(false);
       setItemToDelete(null);
       setDeleteType('');
       loadData();
     } catch (error) {
-      toast.error('Erro ao excluir item');
+      console.error('Erro ao deletar item:', error);
+      toast.error('Erro ao deletar item');
     }
   };
 
@@ -357,14 +235,13 @@ const HorariosPage = () => {
   };
 
   // Filtros
-  const filteredConfiguracoes = configuracoes.filter(config => {
-    const matchesSearch = config.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         config.descricao.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSetor = filterSetor === 'all' || config.setorId.toString() === filterSetor;
-    const matchesStatus = filterStatus === 'all' || 
-                         (filterStatus === 'ativo' && config.ativo) ||
-                         (filterStatus === 'inativo' && !config.ativo);
-    return matchesSearch && matchesSetor && matchesStatus;
+  const filteredHorarios = horarios.filter(horario => {
+    const matchesSearch = horario.setorNome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         horario.diaSemana.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSetor = filterSetor === 'all' || horario.setorId.toString() === filterSetor;
+    const matchesDia = filterDia === 'all' || horario.diaSemana === filterDia;
+    
+    return matchesSearch && matchesSetor && matchesDia;
   });
 
   const filteredBloqueios = bloqueios.filter(bloqueio => {
@@ -376,8 +253,10 @@ const HorariosPage = () => {
     return matchesSearch && matchesSetor;
   });
 
-  const getDiasSemanaText = (dias) => {
-    return dias.map(dia => DIAS_SEMANA[dia].abrev).join(', ');
+  // Função para obter texto do dia da semana
+  const getDiaSemanaText = (diaSemana) => {
+    const dia = DIAS_SEMANA.find(d => d.id === diaSemana);
+    return dia ? dia.nome : diaSemana;
   };
 
   const getRecorrenciaText = (tipo) => {
@@ -389,12 +268,6 @@ const HorariosPage = () => {
       'anual': 'Anual'
     };
     return tipos[tipo] || tipo;
-  };
-
-  const getStatusBadge = (ativo) => {
-    return ativo ? 
-      <Badge bg="success">Ativo</Badge> : 
-      <Badge bg="secondary">Inativo</Badge>;
   };
 
   if (isLoading) {
@@ -431,9 +304,9 @@ const HorariosPage = () => {
                   Adicionar
                 </Dropdown.Toggle>
                 <Dropdown.Menu>
-                  <Dropdown.Item onClick={() => handleOpenConfigModal()}>
+                  <Dropdown.Item onClick={() => handleOpenHorarioModal()}>
                     <i className="fas fa-clock me-2"></i>
-                    Nova Configuração
+                    Novo Horário
                   </Dropdown.Item>
                   <Dropdown.Item onClick={() => handleOpenBloqueioModal()}>
                     <i className="fas fa-ban me-2"></i>
@@ -453,8 +326,8 @@ const HorariosPage = () => {
                 <div className="stat-content">
                   <div className="stat-icon"><i className="fas fa-cogs"></i></div>
                   <div className="stat-details">
-                    <h3 className="stat-number">{configuracoes.length}</h3>
-                    <p className="stat-label">Configurações</p>
+                    <h3 className="stat-number">{horarios.length}</h3>
+                    <p className="stat-label">Horários</p>
                   </div>
                 </div>
               </Card.Body>
@@ -466,8 +339,8 @@ const HorariosPage = () => {
                 <div className="stat-content">
                   <div className="stat-icon"><i className="fas fa-check-circle"></i></div>
                   <div className="stat-details">
-                    <h3 className="stat-number">{configuracoes.filter(c => c.ativo).length}</h3>
-                    <p className="stat-label">Ativas</p>
+                    <h3 className="stat-number">{horarios.length}</h3>
+                    <p className="stat-label">Ativos</p>
                   </div>
                 </div>
               </Card.Body>
@@ -492,7 +365,7 @@ const HorariosPage = () => {
                 <div className="stat-content">
                   <div className="stat-icon"><i className="fas fa-calendar-check"></i></div>
                   <div className="stat-details">
-                    <h3 className="stat-number">{configuracoes.reduce((acc, c) => acc + c.totalVisitasAgendadas, 0)}</h3>
+                    <h3 className="stat-number">0</h3>
                     <p className="stat-label">Visitas Agendadas</p>
                   </div>
                 </div>
@@ -509,7 +382,7 @@ const HorariosPage = () => {
               onSelect={setActiveTab}
               className="nav-tabs-custom"
             >
-              <Tab eventKey="configuracoes" title={<><i className="fas fa-cogs me-2"></i>Configurações</>} />
+              <Tab eventKey="horarios" title={<><i className="fas fa-clock me-2"></i>Horários</>} />
               <Tab eventKey="bloqueios" title={<><i className="fas fa-ban me-2"></i>Bloqueios</>} />
               <Tab eventKey="calendario" title={<><i className="fas fa-calendar me-2"></i>Calendário</>} />
             </Tabs>
@@ -549,21 +422,22 @@ const HorariosPage = () => {
                     </Form.Select>
                   </Form.Group>
                 </Col>
-                {activeTab === 'configuracoes' && (
-                  <Col md={4} lg={2}>
-                    <Form.Group>
-                      <Form.Label>Status</Form.Label>
-                      <Form.Select
-                        value={filterStatus}
-                        onChange={e => setFilterStatus(e.target.value)}
-                      >
-                        <option value="all">Todos</option>
-                        <option value="ativo">Ativos</option>
-                        <option value="inativo">Inativos</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                )}
+                {activeTab === 'horarios' && (
+                   <Col md={4} lg={2}>
+                     <Form.Group>
+                       <Form.Label>Dia da Semana</Form.Label>
+                       <Form.Select 
+                         value={filterDia} 
+                         onChange={(e) => setFilterDia(e.target.value)}
+                       >
+                         <option value="all">Todos</option>
+                         {DIAS_SEMANA.map(dia => (
+                           <option key={dia.id} value={dia.id}>{dia.nome}</option>
+                         ))}
+                       </Form.Select>
+                     </Form.Group>
+                   </Col>
+                 )}
                 <Col xs="auto">
                   <Button variant="outline-secondary" onClick={loadData}>
                     <i className="fas fa-refresh me-2"></i>
@@ -574,77 +448,52 @@ const HorariosPage = () => {
             </div>
 
             {/* Conteúdo das Tabs */}
-            {activeTab === 'configuracoes' && (
+            {activeTab === 'horarios' && (
               <div className="table-responsive">
                 <Table hover className="mb-0">
                   <thead className="table-light">
                     <tr>
-                      <th>Configuração</th>
                       <th>Setor</th>
-                      <th>Dias/Horários</th>
-                      <th>Intervalo</th>
-                      <th>Limites</th>
+                      <th>Dia da Semana</th>
+                      <th>Horário</th>
                       <th>Status</th>
-                      <th>Visitas</th>
                       <th width="120">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredConfiguracoes.map(config => (
-                      <tr key={config.id}>
+                    {filteredHorarios.map(horario => (
+                      <tr key={horario.id}>
                         <td>
                           <div className="d-flex align-items-center">
-                            <div className="config-icon me-3">
-                              <i className="fas fa-clock"></i>
+                            <div className="horario-icon me-3">
+                              <i className="fas fa-building"></i>
                             </div>
                             <div>
-                              <div className="fw-bold">{config.nome}</div>
-                              <div className="text-muted small">{config.descricao}</div>
+                              <div className="fw-bold">{horario.setorNome}</div>
                             </div>
                           </div>
                         </td>
                         <td>
-                          <Badge bg="info">{config.setor.nome}</Badge>
+                          <Badge bg="info">{getDiaSemanaText(horario.diaSemana)}</Badge>
                         </td>
                         <td>
-                          <div className="fw-bold">{getDiasSemanaText(config.diasSemana)}</div>
-                          <div className="text-muted small">{config.horaInicio} - {config.horaFim}</div>
+                          <div className="fw-bold">{horario.horaInicio} - {horario.horaFim}</div>
                         </td>
-                        <td>
-                          <span className="fw-bold">{config.intervaloMinutos}min</span>
-                          <div className="text-muted small">por slot</div>
-                        </td>
-                        <td>
-                          <div className="small">
-                            <div><strong>Max:</strong> {config.maxVisitasPorHorario} visita(s)</div>
-                            <div><strong>Antec:</strong> {config.antecedenciaMinima}-{config.antecedenciaMaxima}h</div>
-                          </div>
-                        </td>
-                        <td>{getStatusBadge(config.ativo)}</td>
-                        <td>
-                          <div className="text-center">
-                            <span className="fw-bold d-block">{config.totalVisitasAgendadas}</span>
-                            <small className="text-muted">agendadas</small>
-                          </div>
-                        </td>
+                        <td><Badge bg="success">Ativo</Badge></td>
                         <td>
                           <Dropdown>
                             <Dropdown.Toggle variant="outline-secondary" size="sm">
                               <i className="fas fa-ellipsis-v"></i>
                             </Dropdown.Toggle>
                             <Dropdown.Menu>
-                              <Dropdown.Item onClick={() => handleOpenConfigModal(config)}>
+                              <Dropdown.Item onClick={() => handleOpenHorarioModal(horario)}>
                                 <i className="fas fa-edit me-2"></i>
                                 Editar
-                              </Dropdown.Item>
-                              <Dropdown.Item onClick={() => toggleConfigStatus(config)}>
-                                <i className={`fas fa-${config.ativo ? 'ban' : 'check'} me-2`}></i>
-                                {config.ativo ? 'Desativar' : 'Ativar'}
                               </Dropdown.Item>
                               <Dropdown.Divider />
                               <Dropdown.Item 
                                 className="text-danger" 
-                                onClick={() => handleDelete(config, 'config')}
+                                onClick={() => handleDelete(horario, 'horario')}
                               >
                                 <i className="fas fa-trash me-2"></i>
                                 Excluir
@@ -656,10 +505,10 @@ const HorariosPage = () => {
                     ))}
                   </tbody>
                 </Table>
-                {filteredConfiguracoes.length === 0 && (
+                {filteredHorarios.length === 0 && (
                   <div className="text-center py-4">
                     <i className="fas fa-clock fa-3x text-muted mb-3"></i>
-                    <p className="text-muted">Nenhuma configuração encontrada</p>
+                    <p className="text-muted">Nenhum horário encontrado</p>
                   </div>
                 )}
               </div>
@@ -762,37 +611,23 @@ const HorariosPage = () => {
           </Card.Body>
         </Card>
 
-        {/* Modal de Configuração */}
-        <Modal show={showConfigModal} onHide={handleCloseConfigModal} size="lg">
+        {/* Modal de Horário */}
+        <Modal show={showHorarioModal} onHide={handleCloseHorarioModal} size="lg">
           <Modal.Header closeButton>
             <Modal.Title>
               <i className="fas fa-clock me-2"></i>
-              {editingConfig ? 'Editar Configuração' : 'Nova Configuração'}
+              {editingHorario ? 'Editar Horário' : 'Novo Horário'}
             </Modal.Title>
           </Modal.Header>
-          <Form onSubmit={configForm.handleSubmit(onSubmitConfig)} noValidate>
+          <Form onSubmit={horarioForm.handleSubmit(handleSaveHorario)} noValidate>
             <Modal.Body>
               <Row>
-                <Col md={8}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Nome da Configuração</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Ex: Horário Comercial Gabinete"
-                      {...configForm.register('nome')}
-                      isInvalid={!!configForm.formState.errors.nome}
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      {configForm.formState.errors.nome?.message}
-                    </Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-                <Col md={4}>
+                <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Setor</Form.Label>
                     <Form.Select
-                      {...configForm.register('setorId')}
-                      isInvalid={!!configForm.formState.errors.setorId}
+                      {...horarioForm.register('setorId')}
+                      isInvalid={!!horarioForm.formState.errors.setorId}
                     >
                       <option value="">Selecione um setor</option>
                       {setores.map(setor => (
@@ -800,141 +635,65 @@ const HorariosPage = () => {
                       ))}
                     </Form.Select>
                     <Form.Control.Feedback type="invalid">
-                      {configForm.formState.errors.setorId?.message}
+                      {horarioForm.formState.errors.setorId?.message}
+                    </Form.Control.Feedback>
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Dia da Semana</Form.Label>
+                    <Form.Select
+                      {...horarioForm.register('diaSemana')}
+                      isInvalid={!!horarioForm.formState.errors.diaSemana}
+                    >
+                      <option value="">Selecione um dia</option>
+                      {DIAS_SEMANA.map(dia => (
+                        <option key={dia.id} value={dia.id}>{dia.nome}</option>
+                      ))}
+                    </Form.Select>
+                    <Form.Control.Feedback type="invalid">
+                      {horarioForm.formState.errors.diaSemana?.message}
                     </Form.Control.Feedback>
                   </Form.Group>
                 </Col>
               </Row>
 
-              <Form.Group className="mb-3">
-                <Form.Label>Descrição</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={2}
-                  placeholder="Breve descrição da configuração"
-                  {...configForm.register('descricao')}
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Dias da Semana</Form.Label>
-                <div className="dias-semana-grid">
-                  {DIAS_SEMANA.map(dia => (
-                    <Form.Check
-                      key={dia.id}
-                      type="checkbox"
-                      id={`dia-${dia.id}`}
-                      label={dia.nome}
-                      value={dia.id}
-                      {...configForm.register('diasSemana')}
-                    />
-                  ))}
-                </div>
-              </Form.Group>
-
               <Row>
-                <Col md={3}>
+                <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Hora Início</Form.Label>
                     <Form.Control
                       type="time"
-                      {...configForm.register('horaInicio')}
-                      isInvalid={!!configForm.formState.errors.horaInicio}
+                      {...horarioForm.register('horaInicio')}
+                      isInvalid={!!horarioForm.formState.errors.horaInicio}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      {horarioForm.formState.errors.horaInicio?.message}
+                    </Form.Control.Feedback>
                   </Form.Group>
                 </Col>
-                <Col md={3}>
+                <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Hora Fim</Form.Label>
                     <Form.Control
                       type="time"
-                      {...configForm.register('horaFim')}
-                      isInvalid={!!configForm.formState.errors.horaFim}
+                      {...horarioForm.register('horaFim')}
+                      isInvalid={!!horarioForm.formState.errors.horaFim}
                     />
-                  </Form.Group>
-                </Col>
-                <Col md={3}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Intervalo (min)</Form.Label>
-                    <Form.Select
-                      {...configForm.register('intervaloMinutos')}
-                    >
-                      <option value={15}>15 minutos</option>
-                      <option value={30}>30 minutos</option>
-                      <option value={60}>1 hora</option>
-                      <option value={120}>2 horas</option>
-                      <option value={180}>3 horas</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                <Col md={3}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Max Visitas/Slot</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min="1"
-                      max="10"
-                      {...configForm.register('maxVisitasPorHorario')}
-                    />
+                    <Form.Control.Feedback type="invalid">
+                      {horarioForm.formState.errors.horaFim?.message}
+                    </Form.Control.Feedback>
                   </Form.Group>
                 </Col>
               </Row>
-
-              <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Antecedência Mínima (horas)</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min="1"
-                      {...configForm.register('antecedenciaMinima')}
-                    />
-                    <Form.Text className="text-muted">
-                      Tempo mínimo para agendar
-                    </Form.Text>
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Antecedência Máxima (horas)</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min="24"
-                      {...configForm.register('antecedenciaMaxima')}
-                    />
-                    <Form.Text className="text-muted">
-                      Tempo máximo para agendar
-                    </Form.Text>
-                  </Form.Group>
-                </Col>
-              </Row>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Observações</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  placeholder="Informações adicionais sobre esta configuração..."
-                  {...configForm.register('observacoes')}
-                />
-              </Form.Group>
-
-              <Form.Group>
-                <Form.Check
-                  type="switch"
-                  id="config-ativo"
-                  label="Configuração ativa"
-                  {...configForm.register('ativo')}
-                />
-              </Form.Group>
             </Modal.Body>
             <Modal.Footer>
-              <Button variant="secondary" onClick={handleCloseConfigModal}>
+              <Button variant="secondary" onClick={handleCloseHorarioModal}>
                 Cancelar
               </Button>
               <Button variant="primary" type="submit">
                 <i className="fas fa-save me-2"></i>
-                {editingConfig ? 'Atualizar' : 'Criar'}
+                {editingHorario ? 'Atualizar' : 'Criar'}
               </Button>
             </Modal.Footer>
           </Form>
@@ -1071,7 +830,7 @@ const HorariosPage = () => {
           onHide={() => setShowDeleteModal(false)}
           onConfirm={confirmDelete}
           title="Confirmar Exclusão"
-          message={`Tem certeza que deseja excluir ${deleteType === 'config' ? 'esta configuração' : 'este bloqueio'}? Esta ação não pode ser desfeita.`}
+          message={`Tem certeza que deseja excluir ${deleteType === 'horario' ? 'este horário' : 'este bloqueio'}? Esta ação não pode ser desfeita.`}
           variant="danger"
         />
       </Container>

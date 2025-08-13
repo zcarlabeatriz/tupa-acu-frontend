@@ -22,6 +22,16 @@ export const servidoresService = {
     }
   },
 
+  getServidoresPorSetor: async (setorId) => {
+    try {
+      const response = await api.get(`${API_ENDPOINTS.SERVIDORES}/setor/${setorId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar servidores do setor:", error);
+      throw error;
+    }
+  },
+
   criarServidor: async (data) => {
     try {
       const response = await api.post(API_ENDPOINTS.SERVIDORES, data);

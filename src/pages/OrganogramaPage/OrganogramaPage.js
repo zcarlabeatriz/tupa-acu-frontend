@@ -3,9 +3,9 @@ import { Container, Row, Col, Card, Table, Button, Form, InputGroup, Modal, Badg
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { toast } from 'react-toastify';
-// import { organogramaService } from '../../services/api/organogramaService';
+import { organogramaService } from '../../services/api/organogramaService';
 import { setorSchema } from '../../services/utils/validators';
-// import { formatDate, formatDateTime } from '../../services/utils/formatters';
+import { formatDate, formatDateTime } from '../../services/utils/formatters';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import Loading from '../../components/common/Loading/Loading';
@@ -19,11 +19,13 @@ const OrganogramaPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingSetor, setEditingSetor] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  // Removido filterStatus pois não há mais coluna de status
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [setorToDelete, setSetorToDelete] = useState(null);
   const [activeTab, setActiveTab] = useState('lista');
   const [treeData, setTreeData] = useState([]);
+  const [showServidoresModal, setShowServidoresModal] = useState(false);
+  const [selectedSetor, setSelectedSetor] = useState(null);
   
   const { user } = useAuth();
   const { isAdmin } = usePermissions();
@@ -57,144 +59,14 @@ const OrganogramaPage = () => {
   const loadSetores = async () => {
     setIsLoading(true);
     try {
-      // Simulação de dados - substitua pelas chamadas reais da API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Buscar dados reais da API
+      const response = await organogramaService.listarTodos();
+      const setoresData = response;
       
-      const mockSetores = [
-        {
-          id: 1,
-          nome: 'Gabinete do Secretário',
-          sigla: 'GAB',
-          descricao: 'Gabinete principal da Secretaria de Educação',
-          setorPaiId: null,
-          responsavel: 'Maria José da Silva',
-          email: 'gabinete@seduc.ma.gov.br',
-          telefone: '(98) 3131-0001',
-          localizacao: 'Andar 5 - Sala 501',
-          status: 'ativo',
-          dataCriacao: '2024-01-01T08:00:00Z',
-          totalServidores: 8,
-          totalSubsetores: 3,
-          observacoes: 'Setor principal da secretaria'
-        },
-        {
-          id: 2,
-          nome: 'Superintendência de Recursos Humanos',
-          sigla: 'SURH',
-          descricao: 'Gestão de pessoal e recursos humanos',
-          setorPaiId: 1,
-          responsavel: 'João Carlos Santos',
-          email: 'rh@seduc.ma.gov.br',
-          telefone: '(98) 3131-0002',
-          localizacao: 'Andar 3 - Salas 301-310',
-          status: 'ativo',
-          dataCriacao: '2024-01-15T09:00:00Z',
-          totalServidores: 15,
-          totalSubsetores: 2,
-          observacoes: ''
-        },
-        {
-          id: 3,
-          nome: 'Departamento de Folha de Pagamento',
-          sigla: 'DFP',
-          descricao: 'Processamento da folha de pagamento',
-          setorPaiId: 2,
-          responsavel: 'Ana Paula Lima',
-          email: 'folha@seduc.ma.gov.br',
-          telefone: '(98) 3131-0003',
-          localizacao: 'Andar 3 - Sala 305',
-          status: 'ativo',
-          dataCriacao: '2024-01-20T10:00:00Z',
-          totalServidores: 6,
-          totalSubsetores: 0,
-          observacoes: ''
-        },
-        {
-          id: 4,
-          nome: 'Departamento de Administração de Pessoal',
-          sigla: 'DAP',
-          descricao: 'Administração e controle de pessoal',
-          setorPaiId: 2,
-          responsavel: 'Carlos Eduardo Rocha',
-          email: 'pessoal@seduc.ma.gov.br',
-          telefone: '(98) 3131-0004',
-          localizacao: 'Andar 3 - Sala 308',
-          status: 'ativo',
-          dataCriacao: '2024-01-25T11:00:00Z',
-          totalServidores: 9,
-          totalSubsetores: 0,
-          observacoes: ''
-        },
-        {
-          id: 5,
-          nome: 'Superintendência de Tecnologia',
-          sigla: 'SUTEC',
-          descricao: 'Tecnologia da informação e comunicação',
-          setorPaiId: 1,
-          responsavel: 'Fernando Silva Costa',
-          email: 'ti@seduc.ma.gov.br',
-          telefone: '(98) 3131-0005',
-          localizacao: 'Andar 2 - Salas 201-205',
-          status: 'ativo',
-          dataCriacao: '2024-02-01T08:30:00Z',
-          totalServidores: 12,
-          totalSubsetores: 1,
-          observacoes: 'Setor responsável por toda infraestrutura tecnológica'
-        },
-        {
-          id: 6,
-          nome: 'Núcleo de Desenvolvimento de Sistemas',
-          sigla: 'NDS',
-          descricao: 'Desenvolvimento e manutenção de sistemas',
-          setorPaiId: 5,
-          responsavel: 'Rafael Mendes Oliveira',
-          email: 'sistemas@seduc.ma.gov.br',
-          telefone: '(98) 3131-0006',
-          localizacao: 'Andar 2 - Sala 203',
-          status: 'ativo',
-          dataCriacao: '2024-02-10T09:15:00Z',
-          totalServidores: 8,
-          totalSubsetores: 0,
-          observacoes: ''
-        },
-        {
-          id: 7,
-          nome: 'Superintendência Financeira',
-          sigla: 'SUFIN',
-          descricao: 'Gestão financeira e orçamentária',
-          setorPaiId: 1,
-          responsavel: 'Luciana Pereira Santos',
-          email: 'financeiro@seduc.ma.gov.br',
-          telefone: '(98) 3131-0007',
-          localizacao: 'Andar 4 - Salas 401-408',
-          status: 'ativo',
-          dataCriacao: '2024-02-15T10:00:00Z',
-          totalServidores: 18,
-          totalSubsetores: 0,
-          observacoes: ''
-        },
-        {
-          id: 8,
-          nome: 'Assessoria Jurídica',
-          sigla: 'AJUR',
-          descricao: 'Assessoria e consultoria jurídica',
-          setorPaiId: null,
-          responsavel: 'Dr. Roberto Almeida Filho',
-          email: 'juridico@seduc.ma.gov.br',
-          telefone: '(98) 3131-0008',
-          localizacao: 'Andar 5 - Sala 510',
-          status: 'inativo',
-          dataCriacao: '2024-03-01T08:00:00Z',
-          totalServidores: 4,
-          totalSubsetores: 0,
-          observacoes: 'Temporariamente desativado para reestruturação'
-        }
-      ];
-
-      setSetores(mockSetores);
+      setSetores(setoresData);
       
       // Criar estrutura em árvore para o organograma
-      const tree = buildTreeData(mockSetores);
+      const tree = buildTreeData(setoresData);
       setTreeData(tree);
       
     } catch (error) {
@@ -210,10 +82,15 @@ const OrganogramaPage = () => {
 
     // Criar mapa de setores
     setores.forEach(setor => {
-      setorMap[setor.id] = { 
-        ...setor, 
-        children: [] 
+      // Garantir que as propriedades responsavelInfo e servidores estejam disponíveis
+      const setorProcessado = {
+        ...setor,
+        responsavelInfo: setor.responsavelInfo || null,
+        servidores: setor.servidores || [],
+        children: []
       };
+      
+      setorMap[setor.id] = setorProcessado;
     });
 
     // Construir árvore
@@ -240,6 +117,11 @@ const OrganogramaPage = () => {
       setValue('telefone', setor.telefone);
       setValue('localizacao', setor.localizacao || '');
       setValue('observacoes', setor.observacoes || '');
+      
+      // Verificar se o setor pai existe
+      if (setor.setorPaiId && !getSetoresForSelect().some(s => s.id === setor.setorPaiId)) {
+        console.warn(`Setor pai com ID ${setor.setorPaiId} não encontrado na lista de setores disponíveis`);
+      }
     } else {
       reset();
     }
@@ -252,22 +134,53 @@ const OrganogramaPage = () => {
     reset();
   };
 
+  const handleShowServidores = (setor) => {
+    setSelectedSetor(setor);
+    setShowServidoresModal(true);
+  };
+
+  const handleCloseServidoresModal = () => {
+    setShowServidoresModal(false);
+    setSelectedSetor(null);
+  };
+
   const onSubmit = async (data) => {
     try {
+      // Validar se o setorPaiId é válido
+      if (data.setorPaiId && !validarSetorPai(data.setorPaiId)) {
+        toast.error('O setor pai selecionado não é válido ou não está ativo');
+        return;
+      }
+      
       const setorData = {
         ...data,
-        telefone: data.telefone.replace(/\D/g, '')
+        telefone: data.telefone.replace(/\D/g, ''),
+        setorPaiId: data.setorPaiId === '' ? null : parseInt(data.setorPaiId)
       };
 
+      let result;
       if (editingSetor) {
-        toast.success('Setor atualizado com sucesso!');
+        result = await organogramaService.atualizarSetor(editingSetor.id, setorData);
+        if (result.success) {
+          toast.success('Setor atualizado com sucesso!');
+        } else {
+          toast.error(result.error || 'Erro ao atualizar setor');
+          return;
+        }
       } else {
-        toast.success('Setor cadastrado com sucesso!');
+        result = await organogramaService.criarSetor(setorData);
+        if (result.success) {
+          toast.success('Setor cadastrado com sucesso!');
+        } else {
+          toast.error(result.error || 'Erro ao cadastrar setor');
+          return;
+        }
       }
       handleCloseModal();
       loadSetores();
     } catch (error) {
-      toast.error('Erro ao salvar setor');
+      console.error('Erro ao salvar setor:', error);
+      toast.error('Erro ao salvar setor: ' + (error.message || 'Erro desconhecido'));
     }
   };
 
@@ -276,7 +189,7 @@ const OrganogramaPage = () => {
       toast.warning('Não é possível excluir um setor que possui subsetores');
       return;
     }
-    if (setor.totalServidores > 0) {
+    if (setor.servidores && setor.servidores.length > 0) {
       toast.warning('Não é possível excluir um setor que possui servidores');
       return;
     }
@@ -286,39 +199,31 @@ const OrganogramaPage = () => {
 
   const confirmDelete = async () => {
     try {
-      toast.success('Setor excluído com sucesso!');
-      setShowDeleteModal(false);
-      setSetorToDelete(null);
-      loadSetores();
+      const result = await organogramaService.deletarSetor(setorToDelete.id);
+      if (result.success) {
+        toast.success('Setor excluído com sucesso!');
+        setShowDeleteModal(false);
+        setSetorToDelete(null);
+        loadSetores();
+      } else {
+        toast.error(result.error || 'Erro ao excluir setor');
+      }
     } catch (error) {
-      toast.error('Erro ao excluir setor');
+      toast.error('Erro ao excluir setor: ' + (error.message || 'Erro desconhecido'));
     }
   };
 
-  const toggleStatus = async (setor) => {
-    try {
-      const newStatus = setor.status === 'ativo' ? 'inativo' : 'ativo';
-      toast.success(`Setor ${newStatus === 'ativo' ? 'ativado' : 'desativado'} com sucesso!`);
-      loadSetores();
-    } catch (error) {
-      toast.error('Erro ao alterar status');
-    }
-  };
+  // Removido toggleStatus pois não há mais funcionalidade de status
 
   // Filtrar setores
   const filteredSetores = setores.filter(setor => {
     const matchesSearch = setor.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          setor.sigla.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         setor.responsavel.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || setor.status === filterStatus;
-    return matchesSearch && matchesStatus;
+                         (setor.responsavelInfo && setor.responsavelInfo.nome.toLowerCase().includes(searchTerm.toLowerCase()));
+    return matchesSearch;
   });
 
-  const getStatusBadge = (status) => {
-    return status === 'ativo' ? 
-      <Badge bg="success">Ativo</Badge> : 
-      <Badge bg="secondary">Inativo</Badge>;
-  };
+  // Removido getStatusBadge pois não há mais coluna de status
 
   const getSetorHierarchy = (setorId) => {
     const setor = setores.find(s => s.id === setorId);
@@ -330,8 +235,13 @@ const OrganogramaPage = () => {
 
   const getSetoresForSelect = () => {
     return setores
-      .filter(setor => setor.status === 'ativo')
       .filter(setor => !editingSetor || setor.id !== editingSetor.id);
+  };
+  
+  // Função para validar se o setorPaiId é válido
+  const validarSetorPai = (setorPaiId) => {
+    if (!setorPaiId) return true; // Setor raiz é válido
+    return setores.some(setor => setor.id === parseInt(setorPaiId));
   };
 
   if (isLoading) {
@@ -406,7 +316,7 @@ const OrganogramaPage = () => {
                 <div className="stat-content">
                   <div className="stat-icon"><i className="fas fa-users"></i></div>
                   <div className="stat-details">
-                    <h3 className="stat-number">{setores.reduce((acc, s) => acc + s.totalServidores, 0)}</h3>
+                    <h3 className="stat-number">{setores.reduce((acc, s) => acc + (s.servidores ? s.servidores.length : 0), 0)}</h3>
                     <p className="stat-label">Servidores</p>
                   </div>
                 </div>
@@ -465,19 +375,7 @@ const OrganogramaPage = () => {
                         </InputGroup>
                       </Form.Group>
                     </Col>
-                    <Col md={4} lg={3}>
-                      <Form.Group>
-                        <Form.Label>Status</Form.Label>
-                        <Form.Select
-                          value={filterStatus}
-                          onChange={e => setFilterStatus(e.target.value)}
-                        >
-                          <option value="all">Todos</option>
-                          <option value="ativo">Ativos</option>
-                          <option value="inativo">Inativos</option>
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
+                    {/* Removido filtro de status */}
                     <Col xs="auto">
                       <Button variant="outline-secondary" onClick={loadSetores}>
                         <i className="fas fa-refresh me-2"></i>
@@ -498,7 +396,6 @@ const OrganogramaPage = () => {
                         <th>Responsável</th>
                         <th>Contato</th>
                         <th>Servidores</th>
-                        <th>Status</th>
                         <th width="120">Ações</th>
                       </tr>
                     </thead>
@@ -513,13 +410,20 @@ const OrganogramaPage = () => {
                               <div>
                                 <div className="fw-bold">{setor.nome}</div>
                                 <div className="text-muted small">{setor.descricao}</div>
+                                {setor.dataCriacao && (
+                                  <div className="text-muted small">Criado em: {formatDate(setor.dataCriacao)}</div>
+                                )}
                               </div>
                             </div>
                           </td>
                           <td>
-                            <Badge bg="info" className="font-monospace">
-                              {setor.sigla}
-                            </Badge>
+                            {setor.sigla ? (
+                              <Badge bg="info" className="font-monospace">
+                                {setor.sigla}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
                           </td>
                           <td>
                             {setor.setorPaiId ? (
@@ -531,22 +435,38 @@ const OrganogramaPage = () => {
                             )}
                           </td>
                           <td>
-                            <div className="fw-bold">{setor.responsavel}</div>
-                            <div className="text-muted small">{setor.localizacao}</div>
+                            {setor.responsavelInfo ? (
+                              <>
+                                <div className="fw-bold">{setor.responsavelInfo.nome}</div>
+                                <div className="text-muted small">{setor.responsavelInfo.cargo}</div>
+                              </>
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
                           </td>
                           <td>
                             <div className="small">
-                              <div><i className="fas fa-envelope me-1"></i> {setor.email}</div>
-                              <div><i className="fas fa-phone me-1"></i> {setor.telefone}</div>
+                              <div><i className="fas fa-envelope me-1"></i> {setor.email || '—'}</div>
+                              <div><i className="fas fa-phone me-1"></i> {setor.telefone || '—'}</div>
                             </div>
                           </td>
                           <td>
                             <div className="text-center">
-                              <span className="fw-bold d-block">{setor.totalServidores}</span>
+                              <span className="fw-bold d-block">{setor.servidores ? setor.servidores.length : 0}</span>
                               <small className="text-muted">servidores</small>
+                              {setor.servidores && setor.servidores.length > 0 && (
+                                <Button 
+                                  variant="link" 
+                                  size="sm" 
+                                  className="p-0 mt-1" 
+                                  onClick={() => handleShowServidores(setor)}
+                                >
+                                  <i className="fas fa-eye me-1"></i>Ver
+                                </Button>
+                              )}
                             </div>
                           </td>
-                          <td>{getStatusBadge(setor.status)}</td>
+                          {/* Removido célula de status */}
                           <td>
                             {isAdmin() && (
                               <Dropdown>
@@ -557,10 +477,6 @@ const OrganogramaPage = () => {
                                   <Dropdown.Item onClick={() => handleOpenModal(setor)}>
                                     <i className="fas fa-edit me-2"></i>
                                     Editar
-                                  </Dropdown.Item>
-                                  <Dropdown.Item onClick={() => toggleStatus(setor)}>
-                                    <i className={`fas fa-${setor.status === 'ativo' ? 'ban' : 'check'} me-2`}></i>
-                                    {setor.status === 'ativo' ? 'Desativar' : 'Ativar'}
                                   </Dropdown.Item>
                                   <Dropdown.Divider />
                                   <Dropdown.Item 
@@ -751,6 +667,64 @@ const OrganogramaPage = () => {
               </Button>
             </Modal.Footer>
           </Form>
+        </Modal>
+
+        {/* Modal de Servidores */}
+        <Modal show={showServidoresModal} onHide={handleCloseServidoresModal} size="lg">
+          <Modal.Header closeButton>
+            <Modal.Title>
+              <i className="fas fa-users me-2"></i>
+              Servidores do Setor {selectedSetor?.nome}
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {selectedSetor?.servidores && selectedSetor.servidores.length > 0 ? (
+              <Table hover responsive>
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Matrícula</th>
+                    <th>Cargo</th>
+                    <th>Email</th>
+                    <th>Contato</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedSetor.servidores.map(servidor => (
+                    <tr key={servidor.id}>
+                      <td>
+                        <div className="d-flex align-items-center">
+                          <div className="avatar-circle me-2">
+                            <span className="avatar-initials">
+                              {servidor.nome?.charAt(0) || '?'}
+                            </span>
+                          </div>
+                          <div>
+                            <div className="fw-bold">{servidor.nome}</div>
+                            <div className="text-muted small">{servidor.cpf}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{servidor.matricula}</td>
+                      <td>{servidor.cargo}</td>
+                      <td>{servidor.email}</td>
+                      <td>{servidor.celular}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            ) : (
+              <div className="text-center py-4">
+                <i className="fas fa-user-slash fa-3x text-muted mb-3"></i>
+                <p className="text-muted">Nenhum servidor encontrado neste setor</p>
+              </div>
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={handleCloseServidoresModal}>
+              Fechar
+            </Button>
+          </Modal.Footer>
         </Modal>
 
         {/* Modal de Confirmação de Exclusão */}

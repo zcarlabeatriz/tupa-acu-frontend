@@ -1,10 +1,12 @@
 import api from './axiosConfig';
-import { API_ENDPOINTS } from '../utils/constants';
+import { API_ENDPOINTS, ROLES } from '../utils/constants';
 
 export const pessoasService = {
   getTodasPessoas: async () => {
     try {
-      const response = await api.get(API_ENDPOINTS.PESSOAS);
+      const response = await api.get(API_ENDPOINTS.PESSOAS, {
+        params:{papel: ROLES.VISITANTE} // Filtrar apenas visitantes
+      });
       return response.data;
     } catch (error) {
       console.error("Erro ao buscar pessoas:", error);
@@ -36,6 +38,15 @@ export const pessoasService = {
       return { success: true };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || 'Erro ao excluir pessoa' };
+    }
+  },
+
+  getPessoaLogada: async () => {
+    try {
+      const response = await api.get(`${API_ENDPOINTS.PESSOAS}/me`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || 'Erro ao buscar dados do usuário' };
     }
   },
 };

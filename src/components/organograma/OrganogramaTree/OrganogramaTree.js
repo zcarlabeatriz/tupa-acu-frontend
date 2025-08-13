@@ -16,11 +16,11 @@ const OrganogramaNode = ({ node }) => (
         <div className="setor-info">
           <small className="text-muted d-block">
             <i className="fas fa-user me-1"></i>
-            {node.responsavel}
+            {node.responsavelInfo ? node.responsavelInfo.nome : 'Sem responsável'}
           </small>
           <small className="text-muted d-block">
             <i className="fas fa-users me-1"></i>
-            {node.totalServidores} servidor{node.totalServidores !== 1 ? 'es' : ''}
+            {node.servidores ? node.servidores.length : 0} servidor{(node.servidores && node.servidores.length !== 1) ? 'es' : ''}
           </small>
         </div>
       </Card.Body>

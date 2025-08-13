@@ -5,6 +5,9 @@
   margin-top: auto;
   font-size: 0.85rem;
   color: #6b7280;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
 }
 
 .footer-text {

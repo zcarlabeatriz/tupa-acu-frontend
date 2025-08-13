@@ -167,7 +167,11 @@ export const servidorSchema = yup.object({
     
   observacoes: yup
     .string()
-    .max(500, 'Observações devem ter no máximo 500 caracteres')
+    .max(500, 'Observações devem ter no máximo 500 caracteres'),
+
+  senha: yup.string().required('Senha é obrigatória'),
+  
+  statusConta: yup.string().required('Status da conta é obrigatório'),
 });
 
 // Adicione este schema ao arquivo de validadores existente
@@ -248,7 +252,7 @@ export const visitaSchema = yup.object({
       if (!value) return false;
       return validateCPF(value);
     }),
-  
+
   visitanteCelular: yup
     .string()
     .required('Celular é obrigatório')
@@ -299,8 +303,7 @@ export const visitaSchema = yup.object({
     .max(500, 'Observações devem ter no máximo 500 caracteres')
 });
 
-// Adicione estes schemas ao arquivo de validadores existente
-
+// Schema para horários de atendimento (configurações complexas)
 export const horarioSchema = yup.object({
   nome: yup
     .string()
@@ -368,6 +371,33 @@ export const horarioSchema = yup.object({
     
   ativo: yup
     .boolean()
+});
+
+// Schema para horários de atendimento simples (baseado na tabela TB04_HorarioAtendimento)
+export const horarioAtendimentoSchema = yup.object({
+  setorId: yup
+    .number()
+    .required('Setor é obrigatório'),
+    
+  diaSemana: yup
+    .string()
+    .oneOf(['DOMINGO', 'SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA', 'SABADO'], 'Dia da semana inválido')
+    .required('Dia da semana é obrigatório'),
+    
+  horaInicio: yup
+    .string()
+    .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
+    .required('Hora de início é obrigatória'),
+    
+  horaFim: yup
+    .string()
+    .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
+    .required('Hora de fim é obrigatória')
+    .test('time-after', 'Hora de fim deve ser posterior à hora de início', function(value) {
+      const { horaInicio } = this.parent;
+      if (!value || !horaInicio) return true;
+      return value > horaInicio;
+    })
 });
 
 export const bloqueioSchema = yup.object({

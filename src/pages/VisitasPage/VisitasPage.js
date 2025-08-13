@@ -3,12 +3,15 @@ import { Container, Row, Col, Card, Table, Button, Form, InputGroup, Modal, Badg
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { toast } from 'react-toastify';
-// import { visitasService } from '../../services/api/visitasService';
+import { visitasService } from '../../services/api/visitasService';
+import { servidoresService } from '../../services/api/servidoresService';
+import { organogramaService } from '../../services/api/organogramaService';
+import { pessoasService } from '../../services/api/pessoasService';
 import { visitaSchema } from '../../services/utils/validators';
 import { formatPhone, formatCPF, formatDate, formatDateTime } from '../../services/utils/formatters';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
-import { ROLES, VISIT_STATUS } from '../../services/utils/constants';
+import { ROLES, SITUACAO_VISITA } from '../../services/utils/constants';
 import Loading from '../../components/common/Loading/Loading';
 import ConfirmModal from '../../components/common/ConfirmModal/ConfirmModal';
 import './VisitasPage.css';
@@ -17,6 +20,8 @@ const VisitasPage = () => {
   const [visitas, setVisitas] = useState([]);
   const [servidores, setServidores] = useState([]);
   const [setores, setSetores] = useState([]);
+  const [selectedSetor, setSelectedSetor] = useState('');
+  const [servidoresDoSetor, setServidoresDoSetor] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -80,6 +85,55 @@ const VisitasPage = () => {
     }
   }, [visitanteCpfValue, setValue]);
 
+  // Buscar servidores quando setor é selecionado
+  useEffect(() => {
+    const buscarServidoresDoSetor = async () => {
+      if (selectedSetor) {
+        try {
+          const servidoresData = await servidoresService.getServidoresPorSetor(selectedSetor);
+          setServidoresDoSetor(servidoresData);
+          
+          // Se não há servidores no setor, buscar o responsável/chefe
+          if (servidoresData.length === 0) {
+            toast.warning('Nenhum servidor encontrado neste setor. Selecione outro setor.');
+          }
+        } catch (error) {
+          console.error('Erro ao buscar servidores do setor:', error);
+          toast.error('Erro ao carregar servidores do setor');
+          setServidoresDoSetor([]);
+        }
+      } else {
+        setServidoresDoSetor([]);
+        setValue('servidorId', '');
+      }
+    };
+
+    buscarServidoresDoSetor();
+  }, [selectedSetor, setValue]);
+
+  useEffect(() => {
+    if (visitanteCpfValue) {
+      const formatted = formatCPF(visitanteCpfValue);
+      if (formatted !== visitanteCpfValue) {
+        setValue('visitanteCpf', formatted);
+      }
+    }
+  }, [visitanteCpfValue, setValue]);
+
+  // Filtrar servidores quando setor for selecionado
+  useEffect(() => {
+    if (selectedSetor) {
+      const servidoresFiltrados = servidores.filter(servidor => 
+        servidor.setor?.id === parseInt(selectedSetor)
+      );
+      setServidoresDoSetor(servidoresFiltrados);
+    } else {
+      setServidoresDoSetor([]);
+    }
+    // Limpar seleção de servidor quando setor mudar
+    setValue('servidorId', '');
+  }, [selectedSetor, servidores, setValue]);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -87,133 +141,16 @@ const VisitasPage = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Simulação de dados - substitua pelas chamadas reais da API
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      
-      const mockSetores = [
-        { id: 1, nome: 'Gabinete' },
-        { id: 2, nome: 'Recursos Humanos' },
-        { id: 3, nome: 'Financeiro' },
-        { id: 4, nome: 'Tecnologia da Informação' },
-        { id: 5, nome: 'Planejamento' }
-      ];
+      // Carregar dados reais da API
+      const [visitasData, servidoresData, setoresData] = await Promise.all([
+        visitasService.listarTodas(),
+        servidoresService.getTodosServidores(),
+        organogramaService.listarTodos()
+      ]);
 
-      const mockServidores = [
-        { id: 1, nome: 'Carlos Alberto Souza', setorId: 4, setor: 'Tecnologia da Informação' },
-        { id: 2, nome: 'Maria Fernanda Lima', setorId: 1, setor: 'Gabinete' },
-        { id: 3, nome: 'João Pedro Santos', setorId: 2, setor: 'Recursos Humanos' },
-        { id: 4, nome: 'Ana Paula Costa', setorId: 3, setor: 'Financeiro' },
-        { id: 5, nome: 'Rafael Mendes Silva', setorId: 5, setor: 'Planejamento' }
-      ];
-
-      const mockVisitas = [
-        {
-          id: 1,
-          visitante: {
-            nome: 'João Silva Santos',
-            email: 'joao.silva@empresa.com',
-            cpf: '123.456.789-01',
-            celular: '(98) 98765-4321',
-            empresa: 'TechCorp Ltda'
-          },
-          servidor: {
-            id: 1,
-            nome: 'Carlos Alberto Souza',
-            setor: 'Tecnologia da Informação'
-          },
-          dataVisita: '2025-08-08',
-          horaInicio: '14:00',
-          horaFim: '15:30',
-          motivo: 'Apresentação de proposta de sistema',
-          observacoes: 'Reunião sobre implementação de novo sistema de gestão',
-          status: VISIT_STATUS.APROVADA,
-          dataSolicitacao: '2025-08-07T10:30:00Z',
-          dataAprovacao: '2025-08-07T11:15:00Z',
-          aprovadoPor: 'Carlos Alberto Souza',
-          protocolo: 'VIS-2025-001'
-        },
-        {
-          id: 2,
-          visitante: {
-            nome: 'Maria Oliveira Costa',
-            email: 'maria.oliveira@consultoria.com',
-            cpf: '987.654.321-09',
-            celular: '(98) 99876-5432',
-            empresa: 'Consultoria Educacional'
-          },
-          servidor: {
-            id: 2,
-            nome: 'Maria Fernanda Lima',
-            setor: 'Gabinete'
-          },
-          dataVisita: '2025-08-09',
-          horaInicio: '09:00',
-          horaFim: '11:00',
-          motivo: 'Consultoria em gestão educacional',
-          observacoes: '',
-          status: VISIT_STATUS.PENDENTE,
-          dataSolicitacao: '2025-08-07T15:20:00Z',
-          dataAprovacao: null,
-          aprovadoPor: null,
-          protocolo: 'VIS-2025-002'
-        },
-        {
-          id: 3,
-          visitante: {
-            nome: 'Pedro Henrique Alves',
-            email: 'pedro.alves@fornecedor.com',
-            cpf: '456.789.123-45',
-            celular: '(98) 97654-3210',
-            empresa: 'Fornecedora de Material'
-          },
-          servidor: {
-            id: 4,
-            nome: 'Ana Paula Costa',
-            setor: 'Financeiro'
-          },
-          dataVisita: '2025-08-07',
-          horaInicio: '16:00',
-          horaFim: '17:00',
-          motivo: 'Negociação de contratos',
-          observacoes: 'Visitante não compareceu no horário agendado',
-          status: VISIT_STATUS.REJEITADA,
-          dataSolicitacao: '2025-08-06T14:00:00Z',
-          dataAprovacao: '2025-08-07T08:30:00Z',
-          aprovadoPor: 'Ana Paula Costa',
-          protocolo: 'VIS-2025-003'
-        },
-        {
-          id: 4,
-          visitante: {
-            nome: 'Luiza Santos Ferreira',
-            email: 'luiza.ferreira@contabilidade.com',
-            cpf: '789.123.456-78',
-            celular: '(98) 96543-2109',
-            empresa: 'Escritório Contábil'
-          },
-          servidor: {
-            id: 3,
-            nome: 'João Pedro Santos',
-            setor: 'Recursos Humanos'
-          },
-          dataVisita: '2025-08-10',
-          horaInicio: '10:00',
-          horaFim: '12:00',
-          motivo: 'Auditoria de folha de pagamento',
-          observacoes: 'Necessário apresentar documentos específicos',
-          status: VISIT_STATUS.CONCLUIDA,
-          dataSolicitacao: '2025-08-05T09:00:00Z',
-          dataAprovacao: '2025-08-05T10:30:00Z',
-          aprovadoPor: 'João Pedro Santos',
-          protocolo: 'VIS-2025-004',
-          dataCheckIn: '2025-08-07T10:05:00Z',
-          dataCheckOut: '2025-08-07T11:58:00Z'
-        }
-      ];
-
-      setSetores(mockSetores);
-      setServidores(mockServidores);
-      setVisitas(mockVisitas);
+      setVisitas(visitasData);
+      setServidores(servidoresData);
+      setSetores(setoresData);
       
     } catch (error) {
       toast.error('Erro ao carregar dados');
@@ -222,7 +159,7 @@ const VisitasPage = () => {
     }
   };
 
-  const handleOpenModal = (visita = null) => {
+  const handleOpenModal = async (visita = null) => {
     setEditingVisita(visita);
     if (visita) {
       setValue('visitanteNome', visita.visitante.nome);
@@ -230,7 +167,12 @@ const VisitasPage = () => {
       setValue('visitanteCpf', visita.visitante.cpf);
       setValue('visitanteCelular', visita.visitante.celular);
       setValue('visitanteEmpresa', visita.visitante.empresa || '');
-      setValue('servidorId', visita.servidor.id);
+      
+      // Definir setor e servidor
+       const setorId = visita.servidorVisitado?.setor?.id?.toString() || '';
+       setSelectedSetor(setorId);
+       setValue('servidorId', visita.servidorVisitado?.id || '');
+      
       setValue('dataVisita', visita.dataVisita);
       setValue('horaInicio', visita.horaInicio);
       setValue('horaFim', visita.horaFim);
@@ -238,6 +180,24 @@ const VisitasPage = () => {
       setValue('observacoes', visita.observacoes || '');
     } else {
       reset();
+      
+      // Se o usuário for VISITANTE, preencher automaticamente seus dados
+      if (user?.papel === ROLES.VISITANTE) {
+        try {
+          const response = await pessoasService.getPessoaLogada();
+          if (response.success) {
+            const pessoaData = response.data;
+            setValue('visitanteNome', pessoaData.nome || '');
+            setValue('visitanteEmail', pessoaData.email || '');
+            setValue('visitanteCpf', pessoaData.cpf || '');
+            setValue('visitanteCelular', pessoaData.celular || '');
+            setValue('visitanteEmpresa', pessoaData.empresa || '');
+          }
+        } catch (error) {
+          console.error('Erro ao buscar dados do usuário:', error);
+          toast.error('Erro ao carregar seus dados. Preencha manualmente.');
+        }
+      }
     }
     setShowModal(true);
   };
@@ -245,6 +205,8 @@ const VisitasPage = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingVisita(null);
+    setSelectedSetor('');
+    setServidoresDoSetor([]);
     reset();
   };
 
@@ -261,32 +223,49 @@ const VisitasPage = () => {
 
   const confirmAction = async () => {
     try {
+      let result;
       let message = '';
+      
       switch (actionType) {
         case 'approve':
+          result = await visitasService.aprovar(actionVisita.id);
           message = 'Visita aprovada com sucesso!';
           break;
         case 'reject':
+          const motivoRejeicao = prompt('Motivo da rejeição (opcional):');
+          result = await visitasService.negar(actionVisita.id, motivoRejeicao || '');
           message = 'Visita rejeitada com sucesso!';
           break;
         case 'cancel':
+          const motivoCancelamento = prompt('Motivo do cancelamento (opcional):');
+          result = await visitasService.cancelar(actionVisita.id, motivoCancelamento || '');
           message = 'Visita cancelada com sucesso!';
           break;
         case 'checkin':
+          result = await visitasService.checkIn(actionVisita.id);
           message = 'Check-in realizado com sucesso!';
           break;
         case 'checkout':
+          result = await visitasService.checkOut(actionVisita.id);
           message = 'Check-out realizado com sucesso!';
           break;
+        case 'delete':
+          result = await visitasService.deletar(actionVisita.id);
+          message = 'Visita excluída com sucesso!';
+          break;
         default:
-          message = 'Ação realizada com sucesso!';
+          throw new Error('Ação não reconhecida');
       }
       
-      toast.success(message);
-      setShowActionModal(false);
-      setActionVisita(null);
-      setActionType('');
-      loadData();
+      if (result.success) {
+        toast.success(message);
+        setShowActionModal(false);
+        setActionVisita(null);
+        setActionType('');
+        loadData();
+      } else {
+        toast.error(result.error || 'Erro ao executar ação');
+      }
     } catch (error) {
       toast.error('Erro ao executar ação');
     }
@@ -294,22 +273,79 @@ const VisitasPage = () => {
 
   const onSubmit = async (data) => {
     try {
+      // Validar se pelo menos setor foi selecionado
+      if (!selectedSetor) {
+        toast.error('Selecione um setor para a visita');
+        return;
+      }
+
       const visitaData = {
-        ...data,
-        visitanteCpf: data.visitanteCpf.replace(/\D/g, ''),
-        visitanteCelular: data.visitanteCelular.replace(/\D/g, '')
+        visitanteId: user.id, // ID do usuário logado
+        servidorVisitadoId: data.servidorId ? parseInt(data.servidorId) : null,
+        setorId: parseInt(selectedSetor),
+        motivo: data.motivo,
+        observacoes: data.observacoes || '',
+        dataHoraAgendamento: `${data.dataVisita}T${data.horaInicio}:00`,
+        dataHoraFim: `${data.dataVisita}T${data.horaFim}:00`,
+        visitante: {
+          nome: data.visitanteNome,
+          email: data.visitanteEmail,
+          cpf: data.visitanteCpf.replace(/\D/g, ''),
+          celular: data.visitanteCelular.replace(/\D/g, ''),
+          empresa: data.visitanteEmpresa || null
+        }
       };
 
+      let result;
       if (editingVisita) {
-        toast.success('Visita atualizada com sucesso!');
+        result = await visitasService.atualizar(editingVisita.id, visitaData);
       } else {
-        toast.success('Visita agendada com sucesso! Aguarde aprovação.');
+        result = await visitasService.agendar(visitaData);
       }
       
-      handleCloseModal();
-      loadData();
+      if (result.success) {
+        if (editingVisita) {
+          toast.success('Visita atualizada com sucesso!');
+        } else {
+          toast.success('Visita agendada com sucesso! Aguarde aprovação.');
+        }
+        handleCloseModal();
+        loadData();
+      } else {
+        // Exibir mensagem de erro mais detalhada
+        const errorMessage = result.error || 'Erro ao salvar visita';
+        
+        // Se for erro de horário, exibir em formato mais amigável
+        if (errorMessage.includes('expediente') || errorMessage.includes('horário')) {
+          toast.error(errorMessage, {
+            duration: 8000, // Mais tempo para ler a mensagem
+            style: {
+              maxWidth: '500px',
+              fontSize: '14px'
+            }
+          });
+        } else {
+          toast.error(errorMessage);
+        }
+      }
     } catch (error) {
-      toast.error('Erro ao salvar visita');
+      console.error('Erro ao salvar visita:', error);
+      const errorMessage = error.response?.data?.message || 
+                          error.message || 
+                          'Erro inesperado ao salvar visita';
+      
+      // Se for erro de horário, exibir em formato mais amigável
+      if (errorMessage.includes('expediente') || errorMessage.includes('horário')) {
+        toast.error(errorMessage, {
+          duration: 8000, // Mais tempo para ler a mensagem
+          style: {
+            maxWidth: '500px',
+            fontSize: '14px'
+          }
+        });
+      } else {
+        toast.error(errorMessage);
+      }
     }
   };
 
@@ -327,15 +363,15 @@ const VisitasPage = () => {
     let matchesTab = true;
     switch (activeTab) {
       case 'pendentes':
-        matchesTab = visita.status === VISIT_STATUS.PENDENTE;
+        matchesTab = visita.situacao === SITUACAO_VISITA.AGENDADA;
         break;
       case 'aprovadas':
-        matchesTab = visita.status === VISIT_STATUS.APROVADA;
+        matchesTab = visita.situacao === SITUACAO_VISITA.CONFIRMADA;
         break;
       case 'minhas':
         matchesTab = user?.papel === ROLES.SERVIDOR ? 
-          visita.servidor.nome === user.nome : 
-          visita.visitante.email === user.email;
+          visita.servidorVisitado?.nome === user.nome : 
+          visita.visitante?.email === user.email;
         break;
       default:
         matchesTab = true;
@@ -344,16 +380,17 @@ const VisitasPage = () => {
     return matchesSearch && matchesStatus && matchesSetor && matchesData && matchesTab;
   });
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (situacao) => {
     const variants = {
-      [VISIT_STATUS.PENDENTE]: { bg: 'warning', text: 'Pendente' },
-      [VISIT_STATUS.APROVADA]: { bg: 'success', text: 'Aprovada' },
-      [VISIT_STATUS.REJEITADA]: { bg: 'danger', text: 'Rejeitada' },
-      [VISIT_STATUS.CONCLUIDA]: { bg: 'info', text: 'Concluída' },
-      [VISIT_STATUS.CANCELADA]: { bg: 'secondary', text: 'Cancelada' }
+      [SITUACAO_VISITA.AGENDADA]: { bg: 'warning', text: 'Agendada' },
+      [SITUACAO_VISITA.CONFIRMADA]: { bg: 'success', text: 'Confirmada' },
+      [SITUACAO_VISITA.EM_ANDAMENTO]: { bg: 'primary', text: 'Em Andamento' },
+      [SITUACAO_VISITA.CONCLUIDA]: { bg: 'info', text: 'Concluída' },
+      [SITUACAO_VISITA.CANCELADA]: { bg: 'secondary', text: 'Cancelada' },
+      [SITUACAO_VISITA.RECUSADA]: { bg: 'danger', text: 'Recusada' }
     };
     
-    const config = variants[status] || { bg: 'secondary', text: status };
+    const config = variants[situacao] || { bg: 'secondary', text: situacao };
     return <Badge bg={config.bg}>{config.text}</Badge>;
   };
 
@@ -363,7 +400,8 @@ const VisitasPage = () => {
       reject: `Deseja rejeitar a visita de "${actionVisita?.visitante.nome}"?`,
       cancel: `Deseja cancelar a visita de "${actionVisita?.visitante.nome}"?`,
       checkin: `Confirmar check-in de "${actionVisita?.visitante.nome}"?`,
-      checkout: `Confirmar check-out de "${actionVisita?.visitante.nome}"?`
+      checkout: `Confirmar check-out de "${actionVisita?.visitante.nome}"?`,
+      delete: `Deseja excluir permanentemente a visita de "${actionVisita?.visitante.nome}"? Esta ação não pode ser desfeita.`
     };
     return messages[actionType] || 'Confirmar ação?';
   };
@@ -374,7 +412,8 @@ const VisitasPage = () => {
       reject: 'Rejeitar Visita',
       cancel: 'Cancelar Visita',
       checkin: 'Check-in',
-      checkout: 'Check-out'
+      checkout: 'Check-out',
+      delete: 'Excluir Visita'
     };
     return titles[actionType] || 'Confirmar Ação';
   };
@@ -383,13 +422,15 @@ const VisitasPage = () => {
     switch (action) {
       case 'approve':
       case 'reject':
-        return canApproveVisitas() && visita.status === VISIT_STATUS.PENDENTE;
+        return canApproveVisitas() && visita.situacao === SITUACAO_VISITA.AGENDADA;
       case 'cancel':
-        return canManageVisitas() && [VISIT_STATUS.PENDENTE, VISIT_STATUS.APROVADA].includes(visita.status);
+        return canManageVisitas() && [SITUACAO_VISITA.AGENDADA, SITUACAO_VISITA.CONFIRMADA].includes(visita.situacao);
       case 'checkin':
-        return canApproveVisitas() && visita.status === VISIT_STATUS.APROVADA;
+        return canApproveVisitas() && visita.situacao === SITUACAO_VISITA.CONFIRMADA;
       case 'checkout':
-        return canApproveVisitas() && visita.status === VISIT_STATUS.APROVADA;
+        return canApproveVisitas() && visita.situacao === SITUACAO_VISITA.EM_ANDAMENTO;
+      case 'delete':
+        return canManageVisitas(); // ADMIN, SERVIDOR e RECEPCIONISTA podem excluir
       default:
         return false;
     }
@@ -452,7 +493,7 @@ const VisitasPage = () => {
                 <div className="stat-content">
                   <div className="stat-icon"><i className="fas fa-clock"></i></div>
                   <div className="stat-details">
-                    <h3 className="stat-number">{visitas.filter(v => v.status === VISIT_STATUS.PENDENTE).length}</h3>
+                    <h3 className="stat-number">{visitas.filter(v => v.status === SITUACAO_VISITA.AGENDADA).length}</h3>
                     <p className="stat-label">Pendentes</p>
                   </div>
                 </div>
@@ -465,7 +506,8 @@ const VisitasPage = () => {
                 <div className="stat-content">
                   <div className="stat-icon"><i className="fas fa-check-circle"></i></div>
                   <div className="stat-details">
-                    <h3 className="stat-number">{visitas.filter(v => v.status === VISIT_STATUS.APROVADA).length}</h3>
+                    <h3 className="stat-number">{visitas.filter(v => v.status === SITUACAO_VISITA.APROVADA).length}</h3>
+
                     <p className="stat-label">Aprovadas</p>
                   </div>
                 </div>
@@ -478,7 +520,7 @@ const VisitasPage = () => {
                 <div className="stat-content">
                   <div className="stat-icon"><i className="fas fa-check-double"></i></div>
                   <div className="stat-details">
-                    <h3 className="stat-number">{visitas.filter(v => v.status === VISIT_STATUS.CONCLUIDA).length}</h3>
+                    <h3 className="stat-number">{visitas.filter(v => v.status === SITUACAO_VISITA.CONCLUIDA).length}</h3>
                     <p className="stat-label">Concluídas</p>
                   </div>
                 </div>
@@ -532,11 +574,12 @@ const VisitasPage = () => {
                       onChange={e => setFilterStatus(e.target.value)}
                     >
                       <option value="all">Todos</option>
-                      <option value={VISIT_STATUS.PENDENTE}>Pendente</option>
-                      <option value={VISIT_STATUS.APROVADA}>Aprovada</option>
-                      <option value={VISIT_STATUS.REJEITADA}>Rejeitada</option>
-                      <option value={VISIT_STATUS.CONCLUIDA}>Concluída</option>
-                      <option value={VISIT_STATUS.CANCELADA}>Cancelada</option>
+                      <option value={SITUACAO_VISITA.AGENDADA}>Agendada</option>
+                      <option value={SITUACAO_VISITA.CONFIRMADA}>Confirmada</option>
+                      <option value={SITUACAO_VISITA.EM_ANDAMENTO}>Em Andamento</option>
+                      <option value={SITUACAO_VISITA.CONCLUIDA}>Concluída</option>
+                      <option value={SITUACAO_VISITA.CANCELADA}>Cancelada</option>
+                      <option value={SITUACAO_VISITA.RECUSADA}>Recusada</option>
                     </Form.Select>
                   </Form.Group>
                 </Col>
@@ -610,13 +653,13 @@ const VisitasPage = () => {
                         </div>
                       </td>
                       <td>
-                        <div className="fw-bold">{visita.servidor.nome}</div>
-                        <div className="text-muted small">{visita.servidor.setor}</div>
+                        <div className="fw-bold">{visita.servidorVisitado?.nome || '—'}</div>
+                        <div className="text-muted small">{visita.servidorVisitado?.setor?.nome || '—'}</div>
                       </td>
                       <td>
-                        <div className="fw-bold">{formatDate(visita.dataVisita)}</div>
+                        <div className="fw-bold">{formatDate(visita.dataHoraAgendamento)}</div>
                         <div className="text-muted small">
-                          {visita.horaInicio} - {visita.horaFim}
+                          {formatDateTime(visita.dataHoraAgendamento).split(' ')[1]} - {formatDateTime(visita.dataHoraFim).split(' ')[1]}
                         </div>
                       </td>
                       <td>
@@ -627,7 +670,7 @@ const VisitasPage = () => {
                           }
                         </div>
                       </td>
-                      <td>{getStatusBadge(visita.status)}</td>
+                      <td>{getStatusBadge(visita.situacao)}</td>
                       <td>
                         <div className="d-flex gap-1">
                           <Button
@@ -699,6 +742,15 @@ const VisitasPage = () => {
                                 >
                                   <i className="fas fa-ban me-2"></i>
                                   Cancelar
+                                </Dropdown.Item>
+                              )}
+                              {canPerformAction(visita, 'delete') && (
+                                <Dropdown.Item 
+                                  className="text-danger" 
+                                  onClick={() => handleAction(visita, 'delete')}
+                                >
+                                  <i className="fas fa-trash me-2"></i>
+                                  Excluir
                                 </Dropdown.Item>
                               )}
                             </Dropdown.Menu>
@@ -820,21 +872,46 @@ const VisitasPage = () => {
               </h6>
               
               <Form.Group className="mb-3">
-                <Form.Label>Servidor a Visitar</Form.Label>
+                <Form.Label>Setor a Visitar</Form.Label>
+                <Form.Select
+                  value={selectedSetor}
+                  onChange={(e) => setSelectedSetor(e.target.value)}
+                >
+                  <option value="">Selecione um setor</option>
+                  {setores.map(setor => (
+                    <option key={setor.id} value={setor.id}>
+                      {setor.nome}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+              
+              <Form.Group className="mb-3">
+                <Form.Label>Servidor a Visitar <span className="text-danger">*</span></Form.Label>
                 <Form.Select
                   {...register('servidorId')}
                   isInvalid={!!errors.servidorId}
+                  disabled={!selectedSetor}
                 >
                   <option value="">Selecione um servidor</option>
-                  {servidores.map(servidor => (
+                  {servidoresDoSetor.map(servidor => (
                     <option key={servidor.id} value={servidor.id}>
-                      {servidor.nome} - {servidor.setor}
+                      {servidor.nome} - {servidor.cargo}
                     </option>
                   ))}
                 </Form.Select>
                 <Form.Control.Feedback type="invalid">
                   {errors.servidorId?.message}
                 </Form.Control.Feedback>
+                <Form.Text className="text-muted">
+                  {selectedSetor ? 
+                    (servidoresDoSetor.length > 0 ? 
+                      'Selecione o servidor que você deseja visitar' : 
+                      'Carregando servidores do setor...'
+                    ) : 
+                    'Primeiro selecione um setor'
+                  }
+                </Form.Text>
               </Form.Group>
               
               <Row>
@@ -954,8 +1031,8 @@ const VisitasPage = () => {
                     </Card.Header>
                     <Card.Body>
                       <p><strong>Protocolo:</strong> {selectedVisita.protocolo}</p>
-                      <p><strong>Servidor:</strong> {selectedVisita.servidor.nome}</p>
-                      <p><strong>Setor:</strong> {selectedVisita.servidor.setor}</p>
+                      <p><strong>Servidor:</strong> {selectedVisita.servidorVisitado?.nome || 'N/A'}</p>
+                      <p><strong>Setor:</strong> {selectedVisita.servidorVisitado?.setor?.nome || 'N/A'}</p>
                       <p><strong>Data:</strong> {formatDate(selectedVisita.dataVisita)}</p>
                       <p><strong>Horário:</strong> {selectedVisita.horaInicio} - {selectedVisita.horaFim}</p>
                       <p><strong>Status:</strong> {getStatusBadge(selectedVisita.status)}</p>
@@ -1024,8 +1101,8 @@ const VisitasPage = () => {
           onConfirm={confirmAction}
           title={getActionTitle()}
           message={getActionMessage()}
-          variant={actionType === 'approve' ? 'success' : actionType === 'reject' ? 'danger' : 'warning'}
-          confirmText={actionType === 'approve' ? 'Aprovar' : actionType === 'reject' ? 'Rejeitar' : 'Confirmar'}
+          variant={actionType === 'approve' ? 'success' : (actionType === 'reject' || actionType === 'delete') ? 'danger' : 'warning'}
+          confirmText={actionType === 'approve' ? 'Aprovar' : actionType === 'reject' ? 'Rejeitar' : actionType === 'delete' ? 'Excluir' : 'Confirmar'}
         />
       </Container>
     </div>

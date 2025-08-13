@@ -2,6 +2,24 @@
   animation: fadeInUp 0.5s ease-out;
 }
 
+/* Estilo para o avatar circular dos servidores */
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  background-color: #007bff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-initials {
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
 /* Estatísticas rápidas */
 .stat-card {
   border: none;

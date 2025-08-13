@@ -30,10 +30,9 @@ const PessoasPage = () => {
   const validationSchema = editingPessoa ? pessoaSchema : pessoaSchema.concat(
     yup.object({
       senha: yup.string().required('Senha é obrigatória').min(6, 'Senha deve ter no mínimo 6 caracteres'),
-      papel: yup.string().required('Papel é obrigatório'),
-      statusConta: yup.string().required('Status da conta é obrigatório')
     })
   );
+
 
   const {
     register,
@@ -50,7 +49,7 @@ const PessoasPage = () => {
       cpf: '',
       celular: '',
       senha: '',
-      papel: ROLES.VISITANTE, 
+      papel: ROLES.VISITANTE, // Forçar papel como VISITANTE
       statusConta: STATUS_CONTA.PENDENTE_VALIDACAO,
     }
   });
@@ -84,7 +83,7 @@ const PessoasPage = () => {
     setIsLoading(true);
     try {
       const fetchedData = await pessoasService.getTodasPessoas();
-      setPessoas(fetchedData);
+      setPessoas(fetchedData.filter(p => p.papel === ROLES.VISITANTE));
     } catch (error) {
       toast.error('Erro ao carregar pessoas: ' + error.message);
     } finally {
@@ -121,6 +120,8 @@ const PessoasPage = () => {
         ...data,
         cpf: data.cpf.replace(/\D/g, ''),
         celular: data.celular ? data.celular.replace(/\D/g, '') : null,
+        papel: ROLES.VISITANTE, // Forçar papel como VISITANTE
+        statusConta: STATUS_CONTA.PENDENTE_VALIDACAO // Status padrão
       };
 
       if (editingPessoa) {
@@ -137,14 +138,14 @@ const PessoasPage = () => {
       }
 
       if (result.success) {
-        toast.success(editingPessoa ? 'Pessoa atualizada com sucesso!' : 'Pessoa cadastrada com sucesso!');
+        toast.success(editingPessoa ? 'Visitante atualizado com sucesso!' : 'Visitante cadastrado com sucesso!');
         handleCloseModal();
         loadPessoas();
       } else {
         toast.error(result.error);
       }
     } catch (error) {
-      toast.error('Erro ao salvar pessoa');
+      toast.error('Erro ao salvar visitante');
     } finally {
       setIsSubmitting(false);
     }
@@ -220,16 +221,8 @@ const PessoasPage = () => {
 
   const getPapelBadge = (papel) => {
     switch (papel) {
-      case ROLES.ADMIN:
-        return <Badge bg="danger">{ROLES.ADMIN}</Badge>;
-      case ROLES.SERVIDOR:
-        return <Badge bg="info">{ROLES.SERVIDOR}</Badge>;
-      case ROLES.RECEPCIONISTA:
-        return <Badge bg="warning">{ROLES.RECEPCIONISTA}</Badge>;
       case ROLES.VISITANTE:
-        return <Badge bg="primary">{ROLES.VISITANTE}</Badge>;
-      default:
-        return <Badge bg="light">Desconhecido</Badge>;
+        return <Badge bg="primary">{ROLES.VISITANTE}</Badge>;      
     }
   };
 
@@ -483,7 +476,7 @@ const PessoasPage = () => {
                       {errors.senha?.message}
                     </Form.Control.Feedback>
                   </Form.Group>
-                  <Row>
+                  {/* <Row>
                     <Col md={6}>
                       <Form.Group className="mb-3">
                         <Form.Label>Papel</Form.Label>
@@ -510,7 +503,7 @@ const PessoasPage = () => {
                         </Form.Select>
                       </Form.Group>
                     </Col>
-                  </Row>
+                  </Row> */}
                 </>
               )}
             </Modal.Body>
