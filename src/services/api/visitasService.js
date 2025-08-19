@@ -47,7 +47,7 @@ export const visitasService = {
   // Negar visita
   negar: async (id, motivo) => {
     try {
-      const response = await api.put(`${API_ENDPOINTS.VISITAS}/${id}/negar`, { motivo });
+      const response = await api.put(`${API_ENDPOINTS.VISITAS}/${id}/negar`, { justificativa: motivo });
       return { success: true, data: response.data };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || 'Erro ao negar visita' };
@@ -57,7 +57,7 @@ export const visitasService = {
   // Cancelar visita
   cancelar: async (id, motivo) => {
     try {
-      const response = await api.put(`${API_ENDPOINTS.VISITAS}/${id}/cancelar`, { motivo });
+      const response = await api.put(`${API_ENDPOINTS.VISITAS}/${id}/cancelar`);
       return { success: true, data: response.data };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || 'Erro ao cancelar visita' };

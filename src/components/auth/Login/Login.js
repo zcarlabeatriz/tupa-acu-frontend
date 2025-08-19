@@ -6,6 +6,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { loginSchema } from '../../../services/utils/validators';
 import { useAuth } from '../../../context/AuthContext';
+import { ROLES } from '../../../services/utils/constants';
 import logo from '../../../assets/images/tuapa-acu.png';
 // import Loading from '../../common/Loading/Loading';
 import './Login.css';
@@ -15,18 +16,17 @@ const Login = () => {
   const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [localError, setLocalError] = useState('');
   
-  const { login, isAuthenticated, clearError, error } = useAuth();
+  const { login, isAuthenticated, clearError, error, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname || '/dashboard';
+
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    setFocus,
-    watch 
+    setFocus
   } = useForm({
     resolver: yupResolver(loginSchema),
     defaultValues: {
@@ -36,15 +36,14 @@ const Login = () => {
     mode: 'onChange' 
   });
 
-  
-  const emailValue = watch('email');
-  const senhaValue = watch('senha');
-
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate(from, { replace: true });
+    if (isAuthenticated && user) {
+      // Determinar o redirecionamento baseado no papel do usuário atual
+      const redirectPath = location.state?.from?.pathname || 
+        (user.papel?.trim() === ROLES.VISITANTE ? '/visitas' : '/dashboard');
+      navigate(redirectPath, { replace: true });
     }
-  }, [isAuthenticated, navigate, from]);
+  }, [isAuthenticated, user, navigate, location.state]);
 
   useEffect(() => {
     setFocus('email');
@@ -88,9 +87,20 @@ const Login = () => {
           position: "top-right",
           autoClose: 3000,
         });
-        // Pequeno delay para mostrar o toast
+        // Pequeno delay para mostrar o toast e determinar redirecionamento
         setTimeout(() => {
-          navigate(from, { replace: true });
+          // Aguardar um pouco mais para garantir que o user foi atualizado no contexto
+          const checkUserAndRedirect = () => {
+            if (user && user.papel) {
+              const redirectPath = location.state?.from?.pathname || 
+                (user.papel.trim() === ROLES.VISITANTE ? '/visitas' : '/dashboard');
+              navigate(redirectPath, { replace: true });
+            } else {
+              // Se o user ainda não foi atualizado, tentar novamente em breve
+              setTimeout(checkUserAndRedirect, 50);
+            }
+          };
+          checkUserAndRedirect();
         }, 100);
       } else {
         const errorMsg = result?.error || 'Email ou senha incorretos';

@@ -1,7 +1,6 @@
 // File: src/context/AuthContext.js
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import api from '../services/api/axiosConfig';
-import { ROLES } from '../services/utils/constants';
 
 const AuthContext = createContext();
 

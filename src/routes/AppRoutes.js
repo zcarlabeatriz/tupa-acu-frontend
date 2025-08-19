@@ -38,7 +38,15 @@ import HelpPage from '../pages/HelpPage/HelpPage';
 import NotificationsPage from '../pages/NotificationsPage/NotificationsPage';
 
 const AppRoutes = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+
+  // Componente para redirecionamento inteligente baseado no papel do usuário
+  const SmartRedirect = () => {
+    if (user?.papel === ROLES.VISITANTE) {
+      return <Navigate to="/visitas" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
+  };
 
   return (
     <Routes>
@@ -83,8 +91,8 @@ const AppRoutes = () => {
           </PrivateRoute>
         }
       >
-        {/* Redirecionamento da raiz */}
-        {/* <Route index element={<Navigate to="/dashboard" replace />} /> */}
+        {/* Redirecionamento da raiz baseado no papel do usuário */}
+        <Route index element={<SmartRedirect />} />
         
         {/* Dashboard - Acessível para ADMIN, RECEPCIONISTA, SERVIDOR */}
         <Route

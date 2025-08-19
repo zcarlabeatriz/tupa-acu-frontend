@@ -26,7 +26,12 @@ const UnauthorizedPage = () => {
   };
 
   const handleGoHome = () => {
-    navigate('/dashboard');
+    // Redirecionar baseado no papel do usuário
+    if (user?.papel === 'VISITANTE') {
+      navigate('/visitas');
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   const handleLogout = async () => {

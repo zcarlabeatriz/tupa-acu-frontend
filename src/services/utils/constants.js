@@ -21,12 +21,12 @@ export const SITUACAO_SERVIDOR = {
 };
 
 export const SITUACAO_VISITA = {
-  AGENDADA: 'AGENDADA',
-  CONFIRMADA: 'CONFIRMADA',
+  AGUARDANDO_APROVACAO: 'AGUARDANDO_APROVACAO',
+  APROVADA: 'APROVADA',
+  NEGADA: 'NEGADA',
   EM_ANDAMENTO: 'EM_ANDAMENTO',
-  CONCLUIDA: 'CONCLUIDA',
-  CANCELADA: 'CANCELADA',
-  RECUSADA: 'RECUSADA'
+  FINALIZADA: 'FINALIZADA',
+  CANCELADA: 'CANCELADA'
 };
 
 export const DIAS_SEMANA = {
@@ -68,7 +68,7 @@ export const NAVIGATION_ITEMS = [
     path: '/visitas',
     label: 'Visitas',
     icon: 'fas fa-calendar-check',
-    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA, ROLES.SERVIDOR]
+    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA, ROLES.SERVIDOR, ROLES.VISITANTE]
   },
   {
     path: '/horarios',
@@ -96,6 +96,7 @@ export const API_ENDPOINTS = {
   ORGANOGRAMA: '/organograma',
   VISITAS: '/visitas',
   HORARIOS: '/horarios',
+  NOTIFICATIONS: '/notifications',
   DASHBOARD: {
     STATS: '/dashboard/stats'
   }

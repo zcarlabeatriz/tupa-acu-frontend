@@ -1,21 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Nav, Collapse, Badge } from 'react-bootstrap';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { NAVIGATION_ITEMS, ROLES } from '../../../services/utils/constants';
+import { useSidebarData } from '../../../hooks/useSidebarData';
 import './Sidebar.css';
 
 const Sidebar = ({ collapsed, show, onHide }) => {
   const [expandedMenus, setExpandedMenus] = useState({});
+  const [isNavigating, setIsNavigating] = useState(false);
   const location = useLocation();
   const { user, hasAnyRole } = useAuth();
+  const { getItemBadge } = useSidebarData();
 
-  const toggleSubmenu = (menuId) => {
+  const toggleSubmenu = useCallback((menuId) => {
     setExpandedMenus(prev => ({
       ...prev,
       [menuId]: !prev[menuId]
     }));
-  };
+  }, []);
+
+  // Reset do estado de navegação quando a localização mudar
+  React.useEffect(() => {
+    setIsNavigating(false);
+  }, [location.pathname]);
 
   const isActiveRoute = (path) => {
     return location.pathname === path || location.pathname.startsWith(path + '/');
@@ -30,28 +38,28 @@ const Sidebar = ({ collapsed, show, onHide }) => {
     const submenus = {
       '/pessoas': [
         { path: '/pessoas', label: 'Listar Pessoas', icon: 'fas fa-list' },
-        { path: '/pessoas/novo', label: 'Nova Pessoa', icon: 'fas fa-plus' }
+        // { path: '/pessoas/novo', label: 'Nova Pessoa', icon: 'fas fa-plus' }
       ],
       '/servidores': [
         { path: '/servidores', label: 'Listar Servidores', icon: 'fas fa-list' },
-        { path: '/servidores/novo', label: 'Novo Servidor', icon: 'fas fa-plus' },
-        { path: '/servidores/importar', label: 'Importar SIGEP', icon: 'fas fa-download' }
+        // { path: '/servidores/novo', label: 'Novo Servidor', icon: 'fas fa-plus' },
+        // { path: '/servidores/importar', label: 'Importar SIGEP', icon: 'fas fa-download' }
       ],
       '/organograma': [
         { path: '/organograma', label: 'Visualizar Organograma', icon: 'fas fa-sitemap' },
-        { path: '/organograma/setores', label: 'Gerenciar Setores', icon: 'fas fa-building' },
-        { path: '/organograma/novo', label: 'Novo Setor', icon: 'fas fa-plus' }
+        // { path: '/organograma/setores', label: 'Gerenciar Setores', icon: 'fas fa-building' },
+        // { path: '/organograma/novo', label: 'Novo Setor', icon: 'fas fa-plus' }
       ],
       '/visitas': [
         { path: '/visitas', label: 'Todas as Visitas', icon: 'fas fa-list' },
-        { path: '/visitas/agenda', label: 'Agenda do Dia', icon: 'fas fa-calendar-day' },
-        { path: '/visitas/nova', label: 'Agendar Visita', icon: 'fas fa-plus' },
-        { path: '/visitas/recepcao', label: 'Controle Recepção', icon: 'fas fa-desktop' }
+        // { path: '/visitas/agenda', label: 'Agenda do Dia', icon: 'fas fa-calendar-day' },
+        // { path: '/visitas/nova', label: 'Agendar Visita', icon: 'fas fa-plus' },
+        // { path: '/visitas/recepcao', label: 'Controle Recepção', icon: 'fas fa-desktop' }
       ],
       '/horarios': [
         { path: '/horarios', label: 'Horários por Setor', icon: 'fas fa-clock' },
-        { path: '/horarios/calendario', label: 'Calendário', icon: 'fas fa-calendar' },
-        { path: '/horarios/configurar', label: 'Configurar Horários', icon: 'fas fa-cog' }
+        // { path: '/horarios/calendario', label: 'Calendário', icon: 'fas fa-calendar' },
+        // { path: '/horarios/configurar', label: 'Configurar Horários', icon: 'fas fa-cog' }
       ],
       
     // === NOVO SUBMENU DE NOTIFICAÇÕES ===
@@ -68,15 +76,43 @@ const Sidebar = ({ collapsed, show, onHide }) => {
     return submenus[path] || [];
   };
 
-  // Mock de contadores - posteriormente virá da API
-  const getItemBadge = (path) => {
-    const badges = {
-      '/visitas': { count: 5, variant: 'warning', tooltip: '5 visitas pendentes' },
-      '/dashboard': { count: 12, variant: 'info', tooltip: '12 notificações' },
-      '/notifications': { count: 3, variant: 'danger', tooltip: '3 notificações não lidas' }
-    };
-    return badges[path];
-  };
+  // Função para lidar com cliques em links (evita recarregamento rápido)
+  const handleLinkClick = useCallback((e) => {
+    // Previne múltiplos cliques rápidos
+    if (e.detail > 1 || isNavigating) {
+      e.preventDefault();
+      return;
+    }
+    
+    setIsNavigating(true);
+    
+    // Fecha a sidebar mobile se estiver aberta
+    if (onHide) {
+      setTimeout(() => onHide(), 100);
+    }
+    
+    // Reset do estado de navegação
+    setTimeout(() => setIsNavigating(false), 300);
+  }, [onHide, isNavigating]);
+
+  // Função específica para cliques em submenus
+  const handleSubmenuClick = useCallback((e) => {
+    // Previne múltiplos cliques rápidos
+    if (e.detail > 1 || isNavigating) {
+      e.preventDefault();
+      return;
+    }
+    
+    setIsNavigating(true);
+    
+    // Fecha a sidebar mobile se estiver aberta
+    if (onHide) {
+      setTimeout(() => onHide(), 150);
+    }
+    
+    // Reset do estado de navegação
+    setTimeout(() => setIsNavigating(false), 400);
+  }, [onHide, isNavigating]);
 
   const SidebarContent = () => (
     <div className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -131,7 +167,12 @@ const Sidebar = ({ collapsed, show, onHide }) => {
                 {hasSubmenu ? (
                   <div
                     className="nav-link-wrapper"
-                    onClick={() => !collapsed && toggleSubmenu(item.path)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (!collapsed) {
+                        toggleSubmenu(item.path);
+                      }
+                    }}
                   >
                     <div className="nav-link-content">
                       <i className={item.icon}></i>
@@ -157,7 +198,7 @@ const Sidebar = ({ collapsed, show, onHide }) => {
                     as={Link} 
                     to={item.path}
                     className="nav-link-content"
-                    onClick={onHide}
+                    onClick={handleLinkClick}
                   >
                     <i className={item.icon}></i>
                     {!collapsed && (
@@ -188,7 +229,7 @@ const Sidebar = ({ collapsed, show, onHide }) => {
                           as={Link} 
                           to={subitem.path}
                           className={`submenu-link ${isActiveRoute(subitem.path) ? 'active' : ''}`}
-                          onClick={onHide}
+                          onClick={handleSubmenuClick}
                         >
                           <i className={subitem.icon}></i>
                           <span className="submenu-text">{subitem.label}</span>

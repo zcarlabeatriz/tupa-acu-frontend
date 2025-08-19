@@ -35,6 +35,8 @@ const VisitasPage = () => {
   const [actionVisita, setActionVisita] = useState(null);
   const [actionType, setActionType] = useState('');
   const [activeTab, setActiveTab] = useState('todas');
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
   
   const { user } = useAuth();
   const { canManageVisitas, canApproveVisitas, isVisitante } = usePermissions();
@@ -141,19 +143,19 @@ const VisitasPage = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Carregar dados reais da API
       const [visitasData, servidoresData, setoresData] = await Promise.all([
         visitasService.listarTodas(),
         servidoresService.getTodosServidores(),
         organogramaService.listarTodos()
       ]);
 
-      setVisitas(visitasData);
-      setServidores(servidoresData);
-      setSetores(setoresData);
+      setVisitas(visitasData || []);
+      setServidores(servidoresData || []);
+      setSetores(setoresData || []);
       
     } catch (error) {
-      toast.error('Erro ao carregar dados');
+      console.error('Erro ao carregar dados:', error);
+      toast.error('Erro ao carregar dados: ' + (error.message || 'Erro desconhecido'));
     } finally {
       setIsLoading(false);
     }
@@ -221,6 +223,31 @@ const VisitasPage = () => {
     setShowActionModal(true);
   };
 
+  const confirmReject = async () => {
+    try {
+      if (!rejectReason.trim()) {
+        toast.error('Por favor, informe o motivo da rejeição.');
+        return;
+      }
+
+      const result = await visitasService.negar(actionVisita.id, rejectReason);
+      
+      if (result.success) {
+        toast.success('Visita rejeitada com sucesso!');
+        setShowRejectModal(false);
+        setActionVisita(null);
+        setActionType('');
+        setRejectReason('');
+        setActiveTab('todas');
+        loadData();
+      } else {
+        toast.error(result.error || 'Erro ao rejeitar visita');
+      }
+    } catch (error) {
+      toast.error('Erro ao rejeitar visita');
+    }
+  };
+
   const confirmAction = async () => {
     try {
       let result;
@@ -232,10 +259,10 @@ const VisitasPage = () => {
           message = 'Visita aprovada com sucesso!';
           break;
         case 'reject':
-          const motivoRejeicao = prompt('Motivo da rejeição (opcional):');
-          result = await visitasService.negar(actionVisita.id, motivoRejeicao || '');
-          message = 'Visita rejeitada com sucesso!';
-          break;
+          // Abre modal específico para rejeição
+          setShowActionModal(false);
+          setShowRejectModal(true);
+          return;
         case 'cancel':
           const motivoCancelamento = prompt('Motivo do cancelamento (opcional):');
           result = await visitasService.cancelar(actionVisita.id, motivoCancelamento || '');
@@ -262,6 +289,14 @@ const VisitasPage = () => {
         setShowActionModal(false);
         setActionVisita(null);
         setActionType('');
+        
+        // Mudar para aba apropriada após a ação
+        if (actionType === 'approve') {
+          setActiveTab('aprovadas');
+        } else if (actionType === 'reject' || actionType === 'cancel') {
+          setActiveTab('todas');
+        }
+        
         loadData();
       } else {
         toast.error(result.error || 'Erro ao executar ação');
@@ -351,43 +386,53 @@ const VisitasPage = () => {
 
   // Filtrar visitas
   const filteredVisitas = visitas.filter(visita => {
-    const matchesSearch = visita.visitante.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         visita.visitante.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         visita.servidor.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         visita.protocolo.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || visita.status === filterStatus;
-    const matchesSetor = filterSetor === 'all' || visita.servidor.setor === filterSetor;
-    const matchesData = !filterData || visita.dataVisita === filterData;
-    
-    // Filtro por aba
-    let matchesTab = true;
-    switch (activeTab) {
-      case 'pendentes':
-        matchesTab = visita.situacao === SITUACAO_VISITA.AGENDADA;
-        break;
-      case 'aprovadas':
-        matchesTab = visita.situacao === SITUACAO_VISITA.CONFIRMADA;
-        break;
-      case 'minhas':
-        matchesTab = user?.papel === ROLES.SERVIDOR ? 
-          visita.servidorVisitado?.nome === user.nome : 
-          visita.visitante?.email === user.email;
-        break;
-      default:
-        matchesTab = true;
+    try {
+      const matchesSearch = visita.visitante?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           visita.visitante?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           visita.servidorVisitado?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           visita.protocolo?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = filterStatus === 'all' || visita.situacao === filterStatus;
+      const matchesSetor = filterSetor === 'all' || visita.setorVisitadoId === parseInt(filterSetor);
+      const matchesData = !filterData || visita.dataHoraAgendamento?.startsWith(filterData);
+      
+      if (!visita.visitante || !visita.servidorVisitado) {
+        return false;
+      }
+      
+      // Filtro por aba
+      let matchesTab = true;
+      switch (activeTab) {
+        case 'pendentes':
+          matchesTab = visita.situacao === SITUACAO_VISITA.AGUARDANDO_APROVACAO;
+          break;
+        case 'aprovadas':
+          matchesTab = visita.situacao === SITUACAO_VISITA.APROVADA;
+          break;
+        case 'minhas':
+          matchesTab = user?.papel === ROLES.SERVIDOR ? 
+            visita.servidorVisitado?.id === user.id : 
+            visita.visitante?.id === user.id;
+          break;
+        default:
+          matchesTab = true;
+      }
+      
+      return matchesSearch && matchesStatus && matchesSetor && matchesData && matchesTab;
+    } catch (error) {
+      return false;
     }
-    
-    return matchesSearch && matchesStatus && matchesSetor && matchesData && matchesTab;
   });
+  
+
 
   const getStatusBadge = (situacao) => {
     const variants = {
-      [SITUACAO_VISITA.AGENDADA]: { bg: 'warning', text: 'Agendada' },
-      [SITUACAO_VISITA.CONFIRMADA]: { bg: 'success', text: 'Confirmada' },
+      [SITUACAO_VISITA.AGUARDANDO_APROVACAO]: { bg: 'warning', text: 'Aguardando Aprovação' },
+      [SITUACAO_VISITA.APROVADA]: { bg: 'success', text: 'Aprovada' },
+      [SITUACAO_VISITA.NEGADA]: { bg: 'danger', text: 'Negada' },
       [SITUACAO_VISITA.EM_ANDAMENTO]: { bg: 'primary', text: 'Em Andamento' },
-      [SITUACAO_VISITA.CONCLUIDA]: { bg: 'info', text: 'Concluída' },
-      [SITUACAO_VISITA.CANCELADA]: { bg: 'secondary', text: 'Cancelada' },
-      [SITUACAO_VISITA.RECUSADA]: { bg: 'danger', text: 'Recusada' }
+      [SITUACAO_VISITA.FINALIZADA]: { bg: 'info', text: 'Finalizada' },
+      [SITUACAO_VISITA.CANCELADA]: { bg: 'secondary', text: 'Cancelada' }
     };
     
     const config = variants[situacao] || { bg: 'secondary', text: situacao };
@@ -422,11 +467,11 @@ const VisitasPage = () => {
     switch (action) {
       case 'approve':
       case 'reject':
-        return canApproveVisitas() && visita.situacao === SITUACAO_VISITA.AGENDADA;
+        return canApproveVisitas() && visita.situacao === SITUACAO_VISITA.AGUARDANDO_APROVACAO;
       case 'cancel':
-        return canManageVisitas() && [SITUACAO_VISITA.AGENDADA, SITUACAO_VISITA.CONFIRMADA].includes(visita.situacao);
+        return canManageVisitas() && [SITUACAO_VISITA.AGUARDANDO_APROVACAO, SITUACAO_VISITA.APROVADA].includes(visita.situacao);
       case 'checkin':
-        return canApproveVisitas() && visita.situacao === SITUACAO_VISITA.CONFIRMADA;
+        return canApproveVisitas() && visita.situacao === SITUACAO_VISITA.APROVADA;
       case 'checkout':
         return canApproveVisitas() && visita.situacao === SITUACAO_VISITA.EM_ANDAMENTO;
       case 'delete':
@@ -493,7 +538,7 @@ const VisitasPage = () => {
                 <div className="stat-content">
                   <div className="stat-icon"><i className="fas fa-clock"></i></div>
                   <div className="stat-details">
-                    <h3 className="stat-number">{visitas.filter(v => v.status === SITUACAO_VISITA.AGENDADA).length}</h3>
+                    <h3 className="stat-number">{visitas.filter(v => v.situacao === SITUACAO_VISITA.AGUARDANDO_APROVACAO).length}</h3>
                     <p className="stat-label">Pendentes</p>
                   </div>
                 </div>
@@ -506,8 +551,7 @@ const VisitasPage = () => {
                 <div className="stat-content">
                   <div className="stat-icon"><i className="fas fa-check-circle"></i></div>
                   <div className="stat-details">
-                    <h3 className="stat-number">{visitas.filter(v => v.status === SITUACAO_VISITA.APROVADA).length}</h3>
-
+                    <h3 className="stat-number">{visitas.filter(v => v.situacao === SITUACAO_VISITA.APROVADA).length}</h3>
                     <p className="stat-label">Aprovadas</p>
                   </div>
                 </div>
@@ -520,8 +564,8 @@ const VisitasPage = () => {
                 <div className="stat-content">
                   <div className="stat-icon"><i className="fas fa-check-double"></i></div>
                   <div className="stat-details">
-                    <h3 className="stat-number">{visitas.filter(v => v.status === SITUACAO_VISITA.CONCLUIDA).length}</h3>
-                    <p className="stat-label">Concluídas</p>
+                    <h3 className="stat-number">{visitas.filter(v => v.situacao === SITUACAO_VISITA.FINALIZADA).length}</h3>
+                    <p className="stat-label">Finalizadas</p>
                   </div>
                 </div>
               </Card.Body>
@@ -574,12 +618,12 @@ const VisitasPage = () => {
                       onChange={e => setFilterStatus(e.target.value)}
                     >
                       <option value="all">Todos</option>
-                      <option value={SITUACAO_VISITA.AGENDADA}>Agendada</option>
-                      <option value={SITUACAO_VISITA.CONFIRMADA}>Confirmada</option>
+                      <option value={SITUACAO_VISITA.AGUARDANDO_APROVACAO}>Aguardando Aprovação</option>
+                      <option value={SITUACAO_VISITA.APROVADA}>Aprovada</option>
+                      <option value={SITUACAO_VISITA.NEGADA}>Negada</option>
                       <option value={SITUACAO_VISITA.EM_ANDAMENTO}>Em Andamento</option>
-                      <option value={SITUACAO_VISITA.CONCLUIDA}>Concluída</option>
+                      <option value={SITUACAO_VISITA.FINALIZADA}>Finalizada</option>
                       <option value={SITUACAO_VISITA.CANCELADA}>Cancelada</option>
-                      <option value={SITUACAO_VISITA.RECUSADA}>Recusada</option>
                     </Form.Select>
                   </Form.Group>
                 </Col>
@@ -638,7 +682,7 @@ const VisitasPage = () => {
                           {visita.protocolo}
                         </div>
                         <div className="text-muted small">
-                          {formatDate(visita.dataSolicitacao)}
+                          {formatDate(visita.dataSolicitacao || visita.dataCriacao)}
                         </div>
                       </td>
                       <td>
@@ -648,18 +692,18 @@ const VisitasPage = () => {
                           </div>
                           <div>
                             <div className="fw-bold">{visita.visitante.nome}</div>
-                            <div className="text-muted small">{visita.visitante.empresa}</div>
+                            <div className="text-muted small">{visita.visitante.empresa || visita.visitante.email}</div>
                           </div>
                         </div>
                       </td>
                       <td>
                         <div className="fw-bold">{visita.servidorVisitado?.nome || '—'}</div>
-                        <div className="text-muted small">{visita.servidorVisitado?.setor?.nome || '—'}</div>
+                        <div className="text-muted small">{visita.setorVisitadoNome || '—'}</div>
                       </td>
                       <td>
                         <div className="fw-bold">{formatDate(visita.dataHoraAgendamento)}</div>
                         <div className="text-muted small">
-                          {formatDateTime(visita.dataHoraAgendamento).split(' ')[1]} - {formatDateTime(visita.dataHoraFim).split(' ')[1]}
+                          {formatDateTime(visita.dataHoraAgendamento).split(' ')[1]} - {visita.dataHoraFim ? formatDateTime(visita.dataHoraFim).split(' ')[1] : '—'}
                         </div>
                       </td>
                       <td>
@@ -1015,9 +1059,9 @@ const VisitasPage = () => {
                     <Card.Body>
                       <p><strong>Nome:</strong> {selectedVisita.visitante.nome}</p>
                       <p><strong>Email:</strong> {selectedVisita.visitante.email}</p>
-                      <p><strong>CPF:</strong> {selectedVisita.visitante.cpf}</p>
-                      <p><strong>Celular:</strong> {selectedVisita.visitante.celular}</p>
-                      <p><strong>Empresa:</strong> {selectedVisita.visitante.empresa}</p>
+                      <p><strong>CPF:</strong> {formatCPF(selectedVisita.visitante.cpf)}</p>
+                      <p><strong>Celular:</strong> {formatPhone(selectedVisita.visitante.celular)}</p>
+                      <p><strong>Empresa:</strong> {selectedVisita.visitante.empresa || '—'}</p>
                     </Card.Body>
                   </Card>
                 </Col>
@@ -1032,10 +1076,10 @@ const VisitasPage = () => {
                     <Card.Body>
                       <p><strong>Protocolo:</strong> {selectedVisita.protocolo}</p>
                       <p><strong>Servidor:</strong> {selectedVisita.servidorVisitado?.nome || 'N/A'}</p>
-                      <p><strong>Setor:</strong> {selectedVisita.servidorVisitado?.setor?.nome || 'N/A'}</p>
-                      <p><strong>Data:</strong> {formatDate(selectedVisita.dataVisita)}</p>
-                      <p><strong>Horário:</strong> {selectedVisita.horaInicio} - {selectedVisita.horaFim}</p>
-                      <p><strong>Status:</strong> {getStatusBadge(selectedVisita.status)}</p>
+                      <p><strong>Setor:</strong> {selectedVisita.setorVisitadoNome || selectedVisita.servidorVisitado?.setor?.nome || 'N/A'}</p>
+                      <p><strong>Data:</strong> {formatDate(selectedVisita.dataHoraAgendamento)}</p>
+                      <p><strong>Horário:</strong> {formatDateTime(selectedVisita.dataHoraAgendamento).split(' ')[1]} - {selectedVisita.dataHoraFim ? formatDateTime(selectedVisita.dataHoraFim).split(' ')[1] : '—'}</p>
+                      <p><strong>Status:</strong> {getStatusBadge(selectedVisita.situacao)}</p>
                     </Card.Body>
                   </Card>
                 </Col>
@@ -1068,7 +1112,7 @@ const VisitasPage = () => {
                       </h6>
                     </Card.Header>
                     <Card.Body>
-                      <p><strong>Solicitado em:</strong> {formatDateTime(selectedVisita.dataSolicitacao)}</p>
+                      <p><strong>Solicitado em:</strong> {formatDateTime(selectedVisita.dataSolicitacao || selectedVisita.dataCriacao)}</p>
                       {selectedVisita.dataAprovacao && (
                         <p><strong>Aprovado em:</strong> {formatDateTime(selectedVisita.dataAprovacao)}</p>
                       )}
@@ -1090,6 +1134,56 @@ const VisitasPage = () => {
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowDetailsModal(false)}>
               Fechar
+            </Button>
+          </Modal.Footer>
+        </Modal>
+
+        {/* Modal de Rejeição */}
+        <Modal show={showRejectModal} onHide={() => setShowRejectModal(false)}>
+          <Modal.Header closeButton>
+            <Modal.Title>
+              <i className="fas fa-times-circle me-2 text-danger"></i>
+              Rejeitar Visita
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Alert variant="warning">
+              <i className="fas fa-exclamation-triangle me-2"></i>
+              Você está prestes a rejeitar a visita de <strong>{actionVisita?.visitante?.nome}</strong>.
+            </Alert>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Motivo da Rejeição <span className="text-danger">*</span></Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={4}
+                placeholder="Informe o motivo da rejeição da visita..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                maxLength={500}
+              />
+              <Form.Text className="text-muted">
+                {rejectReason.length}/500 caracteres
+              </Form.Text>
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button 
+              variant="secondary" 
+              onClick={() => {
+                setShowRejectModal(false);
+                setRejectReason('');
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="danger" 
+              onClick={confirmReject}
+              disabled={!rejectReason.trim()}
+            >
+              <i className="fas fa-times me-2"></i>
+              Rejeitar Visita
             </Button>
           </Modal.Footer>
         </Modal>
