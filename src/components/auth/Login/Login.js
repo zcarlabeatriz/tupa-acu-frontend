@@ -298,7 +298,7 @@ const Login = () => {
 
               <div className="text-center mt-3">
                 <small className="text-muted">
-                  © 2024 SEDUC/MA - Sistema de Recepção v1.0.0
+                  © 2025 SEDUC/MA - Sistema de Recepção v1.0.0
                 </small>
               </div>
             </div>
